@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../services/api_client.dart';
+import '../services/auth_service.dart';
 import '../ui.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -12,9 +14,12 @@ class AuthScreen extends StatefulWidget {
 
 class _AuthScreenState extends State<AuthScreen> {
   final _form = GlobalKey<FormState>();
+  final _fullName = TextEditingController();
   final _contact = TextEditingController();
   final _password = TextEditingController();
+  final _authService = AuthService();
   bool _hidden = true, _confirmHidden = true, _accepted = true;
+  bool _loading = false;
 
   // Local demo credentials; no backend authentication or admin permissions.
   bool get _isDemoLogin =>
@@ -24,6 +29,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   void dispose() {
+    _fullName.dispose();
     _contact.dispose();
     _password.dispose();
     super.dispose();
@@ -39,32 +45,77 @@ class _AuthScreenState extends State<AuthScreen> {
     return null;
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_form.currentState!.validate()) return;
     if (widget.forgot) {
-      showDialog<void>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Khôi phục mật khẩu'),
-          content: const Text(
-            'Chưa gửi OTP. Đây là bản giao diện minh họa; dịch vụ xác thực chưa được kết nối.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Đã hiểu'),
+      setState(() => _loading = true);
+      try {
+        await _authService.forgotPassword(_contact.text);
+        if (!mounted) return;
+        showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Khoi phuc mat khau'),
+            content: const Text(
+              'Neu email ton tai, he thong da gui huong dan dat lai mat khau.',
             ),
-          ],
-        ),
-      );
-    } else if (widget.register) {
-      if (!_accepted) {
-        showMessage(context, 'Vui lòng đồng ý với điều khoản để tiếp tục.');
-        return;
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Da hieu'),
+              ),
+            ],
+          ),
+        );
+      } on ApiException catch (error) {
+        if (!mounted) return;
+        showMessage(context, error.message);
+      } catch (_) {
+        if (!mounted) return;
+        showMessage(context, 'Khong the ket noi may chu de gui email.');
+      } finally {
+        if (mounted) {
+          setState(() => _loading = false);
+        }
       }
-      Navigator.pushReplacementNamed(context, '/onboarding');
-    } else {
-      Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+      return;
+    }
+
+    if (widget.register && !_accepted) {
+      showMessage(context, 'Vui lòng đồng ý với điều khoản để tiếp tục.');
+      return;
+    }
+
+    setState(() => _loading = true);
+    try {
+      if (widget.register) {
+        final auth = await _authService.register(
+          fullName: _fullName.text,
+          email: _contact.text,
+          password: _password.text,
+        );
+        await _authService.saveSession(auth);
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, '/onboarding');
+      } else {
+        final auth = await _authService.login(
+          _contact.text,
+          _password.text,
+        );
+        await _authService.saveSession(auth);
+        if (!mounted) return;
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+      }
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      showMessage(context, error.message);
+    } catch (_) {
+      if (!mounted) return;
+      showMessage(context, 'Không thể kết nối máy chủ. Kiểm tra URL API và tường lửa mạng nội bộ.');
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -172,6 +223,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       hint: 'VD: Minh Trí',
                       icon: Icons.person_outline,
                       fieldKey: 'name-field',
+                      controller: _fullName,
                       validator: (v) => v == null || v.trim().isEmpty
                           ? 'Vui lòng nhập họ và tên.'
                           : null,
@@ -280,13 +332,15 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   SizedBox(height: widget.forgot ? 28 : 12),
                   PrimaryButton(
-                    label: widget.forgot
+                    label: _loading
+                        ? 'Đang xử lý...'
+                        : widget.forgot
                         ? 'Gửi OTP xác nhận'
                         : widget.register
                         ? 'Bắt đầu hành trình'
                         : 'Vào phòng tập ngay',
                     icon: widget.register ? null : Icons.arrow_forward,
-                    onPressed: _submit,
+                    onPressed: _loading ? null : _submit,
                   ),
                   if (!widget.forgot) ...[
                     const SizedBox(height: 22),

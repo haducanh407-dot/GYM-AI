@@ -1,26 +1,40 @@
 import 'package:flutter/material.dart';
 
+import '../controllers/post_controller.dart';
+import '../models/post.dart';
+import '../services/post_api.dart';
 import '../ui.dart';
 
 class CommunityScreen extends StatefulWidget {
-  const CommunityScreen({super.key});
+  const CommunityScreen({super.key, this.controller});
+
+  final PostController? controller;
 
   @override
   State<CommunityScreen> createState() => _CommunityScreenState();
 }
 
 class _CommunityScreenState extends State<CommunityScreen> {
+  late final PostController _postController;
+  late final bool _ownsController;
   var _tab = 0;
-  var _liked = false;
   var _requested = false;
-  var _city = 'Hà Nội';
-  var _goal = 'Giảm cân';
-  final _comments = <String>[];
-  final _commentInput = TextEditingController();
+  var _city = 'Ha Noi';
+  var _goal = 'Giam can';
+
+  @override
+  void initState() {
+    super.initState();
+    _ownsController = widget.controller == null;
+    _postController = widget.controller ?? PostController(api: PostApi());
+    _postController.loadPosts();
+  }
 
   @override
   void dispose() {
-    _commentInput.dispose();
+    if (_ownsController) {
+      _postController.dispose();
+    }
     super.dispose();
   }
 
@@ -39,12 +53,12 @@ class _CommunityScreenState extends State<CommunityScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
-                  'Tìm người cùng mục tiêu',
+                  'Tim nguoi cung muc tieu',
                   style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 20),
                 const Text(
-                  'Thành phố',
+                  'Thanh pho',
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
@@ -52,9 +66,9 @@ class _CommunityScreenState extends State<CommunityScreen> {
                   spacing: 8,
                   children: [
                     for (final value in [
-                      'Hà Nội',
-                      'TP. Hồ Chí Minh',
-                      'Đà Nẵng',
+                      'Ha Noi',
+                      'TP. Ho Chi Minh',
+                      'Da Nang',
                     ])
                       ChoiceChip(
                         label: Text(value),
@@ -65,14 +79,14 @@ class _CommunityScreenState extends State<CommunityScreen> {
                 ),
                 const SizedBox(height: 15),
                 const Text(
-                  'Mục tiêu',
+                  'Muc tieu',
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
                   children: [
-                    for (final value in ['Giảm cân', 'Tăng cơ', 'Giữ dáng'])
+                    for (final value in ['Giam can', 'Tang co', 'Giu dang'])
                       ChoiceChip(
                         label: Text(value),
                         selected: goal == value,
@@ -82,12 +96,12 @@ class _CommunityScreenState extends State<CommunityScreen> {
                 ),
                 const SizedBox(height: 14),
                 const Text(
-                  'Bộ lọc áp dụng cho dữ liệu minh họa.',
+                  'Bo loc ap dung cho du lieu minh hoa.',
                   style: TextStyle(color: GymColors.muted, fontSize: 12),
                 ),
                 const SizedBox(height: 18),
                 PrimaryButton(
-                  label: 'Áp dụng',
+                  label: 'Ap dung',
                   onPressed: () {
                     setState(() {
                       _city = city;
@@ -104,21 +118,142 @@ class _CommunityScreenState extends State<CommunityScreen> {
     );
   }
 
-  void _openComments() {
-    final input = _commentInput;
-    input.clear();
+  void _openPostForm({Post? post}) {
+    final input = TextEditingController(text: post?.content ?? '');
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  post == null ? 'Tao bai dang' : 'Sua bai dang',
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  key: const Key('post-content-input'),
+                  controller: input,
+                  minLines: 3,
+                  maxLines: 5,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    hintText: 'Ban dang nghi gi ve buoi tap hom nay?',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                PrimaryButton(
+                  key: const Key('save-post'),
+                  label: post == null ? 'Dang bai' : 'Luu thay doi',
+                  onPressed: () async {
+                    final saved = post == null
+                        ? await _postController.createPost(input.text)
+                        : await _postController.updatePost(post.id, input.text);
+                    if (!context.mounted) return;
+                    if (saved) {
+                      Navigator.pop(context);
+                    } else {
+                      showMessage(context, 'Vui long nhap noi dung bai viet');
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openPostActions(Post post) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                key: Key('edit-post-${post.id}'),
+                leading: const Icon(Icons.edit_outlined),
+                title: const Text('Sua bai dang'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _openPostForm(post: post);
+                },
+              ),
+              ListTile(
+                key: Key('delete-post-${post.id}'),
+                leading: const Icon(Icons.delete_outline),
+                title: const Text('Xoa bai dang'),
+                textColor: Colors.redAccent,
+                iconColor: Colors.redAccent,
+                onTap: () {
+                  Navigator.pop(context);
+                  _confirmDelete(post);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _confirmDelete(Post post) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xoa bai dang?'),
+        content: const Text('Bai dang se bien mat khoi bang tin minh hoa.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Huy'),
+          ),
+          FilledButton(
+            key: const Key('confirm-delete-post'),
+            onPressed: () async {
+              await _postController.deletePost(post.id);
+              if (context.mounted) Navigator.pop(context);
+            },
+            child: const Text('Xoa'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openComments(Post post) {
+    final input = TextEditingController();
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (context) => StatefulBuilder(
         builder: (context, updateSheet) {
-          void addComment() {
-            final text = input.text.trim();
-            if (text.isEmpty) return;
-            setState(() => _comments.add(text));
-            updateSheet(() {});
+          Future<void> addComment() async {
+            final added = await _postController.addComment(post.id, input.text);
+            if (!added) return;
             input.clear();
+            updateSheet(() {});
           }
+
+          final currentPost = _postController.posts.firstWhere(
+            (item) => item.id == post.id,
+            orElse: () => post,
+          );
 
           return Padding(
             padding: EdgeInsets.only(
@@ -136,7 +271,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                         children: [
                           const Expanded(
                             child: Text(
-                              'Bình luận',
+                              'Binh luan',
                               style: TextStyle(
                                 fontSize: 19,
                                 fontWeight: FontWeight.w700,
@@ -144,53 +279,36 @@ class _CommunityScreenState extends State<CommunityScreen> {
                             ),
                           ),
                           IconButton(
-                            tooltip: 'Đóng bình luận',
+                            tooltip: 'Dong binh luan',
                             onPressed: () => Navigator.pop(context),
                             icon: const Icon(Icons.close),
                           ),
                         ],
                       ),
                       const Text(
-                        'Bình luận chỉ lưu trong phiên minh họa.',
+                        'Binh luan luu qua PostController trong phien demo.',
                         style: TextStyle(fontSize: 11, color: GymColors.muted),
                       ),
                       const SizedBox(height: 16),
                       Expanded(
                         child: ListView(
                           children: [
-                            const Text(
-                              'Minh Anh',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const Padding(
-                              padding: EdgeInsets.only(top: 5, bottom: 18),
-                              child: Text(
-                                'Quá đỉnh! Cùng cố gắng nhé 💪',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: GymColors.muted,
-                                ),
-                              ),
-                            ),
-                            for (final comment in _comments)
+                            for (final comment in currentPost.comments)
                               Padding(
                                 padding: const EdgeInsets.only(bottom: 17),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text(
-                                      'Bạn',
-                                      style: TextStyle(
+                                    Text(
+                                      comment.authorName,
+                                      style: const TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                     const SizedBox(height: 5),
                                     Text(
-                                      comment,
+                                      comment.content,
                                       style: const TextStyle(fontSize: 13),
                                     ),
                                   ],
@@ -208,14 +326,14 @@ class _CommunityScreenState extends State<CommunityScreen> {
                               textInputAction: TextInputAction.send,
                               onSubmitted: (_) => addComment(),
                               decoration: const InputDecoration(
-                                hintText: 'Viết bình luận...',
+                                hintText: 'Viet binh luan...',
                               ),
                             ),
                           ),
                           const SizedBox(width: 8),
                           IconButton.filled(
                             key: const Key('comment-send'),
-                            tooltip: 'Gửi bình luận',
+                            tooltip: 'Gui binh luan',
                             onPressed: addComment,
                             icon: const Icon(Icons.arrow_upward),
                           ),
@@ -253,27 +371,22 @@ class _CommunityScreenState extends State<CommunityScreen> {
             ),
             const SizedBox(height: 16),
             const Text(
-              'HLV. Hải Đăng',
+              'HLV. Hai Dang',
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             const Text(
-              '★ 4.9  •  5 năm kinh nghiệm',
+              '4.9 sao - 5 nam kinh nghiem',
               style: TextStyle(color: GymColors.purple),
             ),
             const SizedBox(height: 16),
             const Text(
-              'Chuyên môn: Đốt mỡ & Tăng cơ\nLịch rảnh: Sáng / Tối\nHuấn luyện cá nhân theo mục tiêu và trình độ.',
+              'Chuyen mon: Dot mo & Tang co\nLich ranh: Sang / Toi\nHuan luyen ca nhan theo muc tieu va trinh do.',
               style: TextStyle(height: 1.8),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Hồ sơ minh họa • Chưa kết nối với huấn luyện viên thật.',
-              style: TextStyle(fontSize: 12, color: GymColors.muted),
             ),
             const SizedBox(height: 20),
             PrimaryButton(
-              label: 'Đóng hồ sơ',
+              label: 'Dong ho so',
               onPressed: () => Navigator.pop(context),
             ),
           ],
@@ -316,14 +429,14 @@ class _CommunityScreenState extends State<CommunityScreen> {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
-                        'HLV. Hải Đăng',
+                        'HLV. Hai Dang',
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
-                        '★ 4.9',
+                        '4.9 sao',
                         style: TextStyle(
                           fontSize: 11,
                           color: Color(0xFFFFC857),
@@ -333,7 +446,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    'Chuyên môn: Đốt mỡ & Tăng cơ',
+                    'Chuyen mon: Dot mo & Tang co',
                     style: TextStyle(
                       fontSize: 11,
                       color: GymColors.muted,
@@ -341,7 +454,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                     ),
                   ),
                   Text(
-                    'Cách 1.2 km • $_city',
+                    'Cach 1.2 km - $_city',
                     style: const TextStyle(
                       fontSize: 10,
                       color: GymColors.muted,
@@ -356,7 +469,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
         Wrap(
           spacing: 7,
           runSpacing: 7,
-          children: [_tag('Lịch rảnh: Sáng / Tối'), _tag('Kinh nghiệm: 5 năm')],
+          children: [_tag('Lich ranh: Sang / Toi'), _tag('Kinh nghiem: 5 nam')],
         ),
         const SizedBox(height: 15),
         Row(
@@ -372,7 +485,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                     borderRadius: BorderRadius.circular(9),
                   ),
                 ),
-                child: const Text('Xem hồ sơ', style: TextStyle(fontSize: 11)),
+                child: const Text('Xem ho so', style: TextStyle(fontSize: 11)),
               ),
             ),
             const SizedBox(width: 9),
@@ -387,7 +500,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                   ),
                 ),
                 child: Text(
-                  _requested ? 'Đã gửi lời mời' : 'Kết nối ngay',
+                  _requested ? 'Da gui loi moi' : 'Ket noi ngay',
                   style: const TextStyle(fontSize: 11),
                 ),
               ),
@@ -397,108 +510,183 @@ class _CommunityScreenState extends State<CommunityScreen> {
         const SizedBox(height: 8),
         Text(
           _requested
-              ? 'Lời mời minh họa • Chạm lại để hủy.'
-              : 'Kết nối minh họa, chỉ lưu trên thiết bị.',
+              ? 'Loi moi minh hoa - cham lai de huy.'
+              : 'Ket noi minh hoa, chi luu tren thiet bi.',
           style: const TextStyle(fontSize: 9, color: GymColors.muted),
         ),
       ],
     ),
   );
 
-  Widget _feed() => GymCard(
-    padding: EdgeInsets.zero,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _composer() => GymCard(
+    padding: const EdgeInsets.all(12),
+    child: Row(
       children: [
-        Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              const CircleAvatar(
-                radius: 18,
-                backgroundImage: AssetImage('assets/images/avatar.jpg'),
-              ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Linh Nguyễn',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      '2 giờ trước',
-                      style: TextStyle(fontSize: 10, color: GymColors.muted),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF352042),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  'Chia sẻ',
-                  style: TextStyle(fontSize: 10, color: GymColors.purple),
-                ),
-              ),
-            ],
-          ),
+        const CircleAvatar(
+          radius: 18,
+          backgroundImage: AssetImage('assets/images/avatar.jpg'),
         ),
-        Image.asset(
-          'assets/images/community.jpg',
-          width: double.infinity,
-          height: 204,
-          fit: BoxFit.cover,
-        ),
-        const Padding(
-          padding: EdgeInsets.fromLTRB(14, 14, 14, 3),
-          child: Text(
-            'Hôm nay phá kỷ lục cá nhân Squat 100kg! Nhờ AI kiểm tra form đúng góc đỡ cực chuẩn luôn.',
-            style: TextStyle(fontSize: 13, height: 1.5),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-          child: Row(
-            children: [
-              TextButton.icon(
-                key: const Key('community-like'),
-                onPressed: () => setState(() => _liked = !_liked),
-                icon: Icon(
-                  _liked ? Icons.favorite : Icons.favorite_border,
-                  size: 19,
-                ),
-                label: Text(
-                  _liked ? '129' : '128',
-                  style: const TextStyle(fontSize: 11),
-                ),
-                style: TextButton.styleFrom(foregroundColor: GymColors.purple),
+        const SizedBox(width: 10),
+        Expanded(
+          child: OutlinedButton(
+            key: const Key('create-post'),
+            onPressed: _openPostForm,
+            style: OutlinedButton.styleFrom(
+              alignment: Alignment.centerLeft,
+              minimumSize: const Size(0, 42),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(22),
               ),
-              const SizedBox(width: 4),
-              TextButton.icon(
-                key: const Key('community-comments'),
-                onPressed: _openComments,
-                icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                label: Text(
-                  '${24 + _comments.length}',
-                  style: const TextStyle(fontSize: 11),
-                ),
-                style: TextButton.styleFrom(foregroundColor: GymColors.muted),
-              ),
-            ],
+            ),
+            child: const Text('Chia se buoi tap cua ban...'),
           ),
         ),
       ],
     ),
   );
+
+  Widget _feed() => AnimatedBuilder(
+    animation: _postController,
+    builder: (context, _) {
+      if (_postController.loading) {
+        return const Center(
+          child: Padding(
+            padding: EdgeInsets.all(28),
+            child: CircularProgressIndicator(),
+          ),
+        );
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _composer(),
+          const SizedBox(height: 12),
+          for (var i = 0; i < _postController.posts.length; i++) ...[
+            _postCard(_postController.posts[i], i == 0),
+            const SizedBox(height: 12),
+          ],
+        ],
+      );
+    },
+  );
+
+  Widget _postCard(Post post, bool firstPost) {
+    final commentCount = 23 + post.comments.length;
+    return GymCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundImage: AssetImage(post.avatarAsset),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        post.authorName,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Vua cap nhat',
+                        style: TextStyle(fontSize: 10, color: GymColors.muted),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF352042),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    post.tag,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: GymColors.purple,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  key: Key('post-menu-${post.id}'),
+                  tooltip: 'Mo tuy chon bai dang',
+                  onPressed: () => _openPostActions(post),
+                  icon: const Icon(Icons.more_horiz),
+                ),
+              ],
+            ),
+          ),
+          if (post.imageAsset != null)
+            Image.asset(
+              post.imageAsset!,
+              width: double.infinity,
+              height: 204,
+              fit: BoxFit.cover,
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 3),
+            child: Text(
+              post.content,
+              style: const TextStyle(fontSize: 13, height: 1.5),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            child: Row(
+              children: [
+                TextButton.icon(
+                  key: firstPost
+                      ? const Key('community-like')
+                      : Key('like-${post.id}'),
+                  onPressed: () => _postController.toggleLike(post.id),
+                  icon: Icon(
+                    post.liked ? Icons.favorite : Icons.favorite_border,
+                    size: 19,
+                  ),
+                  label: Text(
+                    '${post.likeCount}',
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: GymColors.purple,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                TextButton.icon(
+                  key: firstPost
+                      ? const Key('community-comments')
+                      : Key('comments-${post.id}'),
+                  onPressed: () => _openComments(post),
+                  icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                  label: Text(
+                    '$commentCount',
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                  style: TextButton.styleFrom(foregroundColor: GymColors.muted),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) => Column(
@@ -509,7 +697,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
           children: [
             const Expanded(
               child: Text(
-                'Khám Phá',
+                'Kham Pha',
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
               ),
             ),
@@ -519,7 +707,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
               onPressed: _filters,
               icon: const Icon(Icons.tune, size: 14),
               label: Text(
-                '$_city • $_goal',
+                '$_city - $_goal',
                 style: const TextStyle(fontSize: 10),
               ),
               style: OutlinedButton.styleFrom(
@@ -552,7 +740,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                       ),
                     ),
                     child: Text(
-                      i == 0 ? 'Cộng đồng' : 'Tìm PT / Bạn tập',
+                      i == 0 ? 'Cong dong' : 'Tim PT / Ban tap',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 13,
@@ -575,16 +763,16 @@ class _CommunityScreenState extends State<CommunityScreen> {
               if (_tab == 0) _feed(),
               if (_tab == 1) ...[
                 const Text(
-                  'Cùng nhau tiến bộ mỗi ngày',
+                  'Cung nhau tien bo moi ngay',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Kết quả minh họa tại $_city • $_goal',
+                  'Ket qua minh hoa tai $_city - $_goal',
                   style: const TextStyle(fontSize: 12, color: GymColors.muted),
                 ),
               ],
-              const SectionHeading(title: 'Gợi ý huấn luyện viên'),
+              const SectionHeading(title: 'Goi y huan luyen vien'),
               _trainer(),
             ],
           ),
