@@ -4,12 +4,17 @@ import 'package:flutter/services.dart';
 import 'services/api_client.dart';
 import 'services/auth_service.dart';
 import 'screens/auth.dart';
-import 'screens/camera.dart';
+import 'screens/pose_camera.dart';
+import 'screens/workout_history.dart';
+import 'screens/workout_plans.dart';
 import 'screens/onboarding.dart';
 import 'screens/reset_password.dart';
 import 'screens/settings.dart';
+import 'screens/nutrition.dart';
 import 'screens/shell.dart';
+import 'ai_test_page.dart';
 import 'ui.dart';
+import 'models/workout.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -50,12 +55,25 @@ class MainApp extends StatelessWidget {
       '/forgot': (_) => const AuthScreen(forgot: true),
       '/onboarding': (_) => const OnboardingScreen(),
       '/home': (_) => const AppShell(),
-      '/camera': (_) => const CameraScreen(),
+      '/workout-history': (_) => const WorkoutHistoryScreen(),
+      '/workout-plans': (_) => const WorkoutPlansScreen(),
       '/settings': (_) => const SettingsScreen(),
+      '/nutrition': (_) => const NutritionScreen(),
       '/coach-settings': (_) => const CoachSettingsScreen(),
+      '/ai-test': (_) => const AITestPage(),
     },
     onGenerateRoute: (settings) {
       final route = Uri.parse(settings.name ?? '');
+      if (route.path == '/camera') {
+        return MaterialPageRoute<void>(
+          settings: settings,
+          builder: (_) => PoseCameraScreen(
+            exercise: settings.arguments is Exercise
+                ? settings.arguments as Exercise
+                : null,
+          ),
+        );
+      }
       if (route.path == '/reset-password') {
         return MaterialPageRoute<void>(
           settings: settings,

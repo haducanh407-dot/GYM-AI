@@ -89,20 +89,15 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() => _loading = true);
     try {
       if (widget.register) {
-        final auth = await _authService.register(
+        await _authService.register(
           fullName: _fullName.text,
           email: _contact.text,
           password: _password.text,
         );
-        await _authService.saveSession(auth);
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/onboarding');
       } else {
-        final auth = await _authService.login(
-          _contact.text,
-          _password.text,
-        );
-        await _authService.saveSession(auth);
+        await _authService.login(_contact.text, _password.text);
         if (!mounted) return;
         Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
       }
@@ -111,7 +106,10 @@ class _AuthScreenState extends State<AuthScreen> {
       showMessage(context, error.message);
     } catch (_) {
       if (!mounted) return;
-      showMessage(context, 'Không thể kết nối máy chủ. Kiểm tra URL API và tường lửa mạng nội bộ.');
+      showMessage(
+        context,
+        'Không thể kết nối máy chủ. Kiểm tra URL API và tường lửa mạng nội bộ.',
+      );
     } finally {
       if (mounted) {
         setState(() => _loading = false);

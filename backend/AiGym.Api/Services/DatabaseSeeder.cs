@@ -14,7 +14,10 @@ public static class DatabaseSeeder
     {
         using var scope = services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        await context.Database.EnsureCreatedAsync();
+        if (context.Database.IsRelational())
+            await context.Database.MigrateAsync();
+        else
+            await context.Database.EnsureCreatedAsync();
 
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
         foreach (var role in new[] { "Admin", "User" })
@@ -70,6 +73,23 @@ public static class DatabaseSeeder
                     LikeCount = 47,
                     CreatedAt = DateTime.UtcNow.AddHours(-5)
                 });
+            await context.SaveChangesAsync();
+        }
+
+        if (!await context.Exercises.AnyAsync())
+        {
+            context.Exercises.AddRange(
+                new Exercise { Name = "Squat", Description = "Bodyweight squat", MuscleGroup = "Legs", Difficulty = "beginner" },
+                new Exercise { Name = "Push-up", Description = "Standard push-up", MuscleGroup = "Chest", Difficulty = "beginner" },
+                new Exercise { Name = "Jumping Jack", Description = "Full body cardio", MuscleGroup = "Full body", Difficulty = "beginner" });
+            await context.SaveChangesAsync();
+        }
+        if (!await context.Foods.AnyAsync())
+        {
+            context.Foods.AddRange(
+                new Food { Name = "Chicken breast", CaloriesPer100g = 165, ProteinPer100g = 31, CarbsPer100g = 0, FatPer100g = 3.6m },
+                new Food { Name = "White rice", CaloriesPer100g = 130, ProteinPer100g = 2.7m, CarbsPer100g = 28, FatPer100g = .3m },
+                new Food { Name = "Banana", CaloriesPer100g = 89, ProteinPer100g = 1.1m, CarbsPer100g = 23, FatPer100g = .3m });
             await context.SaveChangesAsync();
         }
     }

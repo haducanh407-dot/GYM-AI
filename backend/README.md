@@ -23,8 +23,12 @@ File `backend/AiGym.Api/appsettings.json` co:
 
 - `ConnectionStrings:DefaultConnection`: SQL Server database `AIGymDb`.
 - `Jwt:Issuer`, `Jwt:Audience`, `Jwt:Key`, `Jwt:ExpiresInMinutes`.
+- `LMStudio:BaseUrl`, `LMStudio:Model`: dia chi va model LMStudio dung cho tro ly AI.
 
 Khi dua len may that, doi `Jwt:Key` sang secret rieng va khong commit secret san xuat.
+
+LMStudio can chay tai `http://127.0.0.1:1234`, da nap model `qwen/qwen3.5-9b`,
+sau do khoi dong lai backend de ap dung cau hinh.
 
 ## Tai khoan va role seed san
 
@@ -83,6 +87,16 @@ Token JWT co claim `userId`, `email`, `role`, `exp` de Flutter doc bang `jwt_dec
 `PUT /api/posts/{id}` can chu bai viet hoac `Admin`.
 
 `DELETE /api/posts/{id}` can chu bai viet hoac `Admin`.
+
+### AI
+
+`POST /api/ai/chat` can dang nhap va chuyen yeu cau den LMStudio:
+
+```json
+{
+  "message": "Goi y cho toi mot bai tap nguc cho nguoi moi."
+}
+```
 
 ## Kiem tra
 

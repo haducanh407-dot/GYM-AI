@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_client.dart';
+import 'profile_service.dart';
 
 class AuthResponse {
   AuthResponse({
@@ -93,14 +94,17 @@ class AuthService {
 
   Future<void> logout() async {
     ApiClient.instance.token = null;
+    ProfileService.instance.clear();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');
   }
 
   Future<void> saveSession(AuthResponse auth) async {
+    ProfileService.instance.clear();
     ApiClient.instance.token = auth.token;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('auth_token', auth.token);
+    await ProfileService.instance.load();
   }
 
   Future<AuthResponse> _handleAuthResponse(dynamic response) async {
