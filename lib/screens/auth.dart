@@ -98,10 +98,7 @@ class _AuthScreenState extends State<AuthScreen> {
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/onboarding');
       } else {
-        final auth = await _authService.login(
-          _contact.text,
-          _password.text,
-        );
+        final auth = await _authService.login(_contact.text, _password.text);
         await _authService.saveSession(auth);
         if (!mounted) return;
         Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
@@ -111,7 +108,10 @@ class _AuthScreenState extends State<AuthScreen> {
       showMessage(context, error.message);
     } catch (_) {
       if (!mounted) return;
-      showMessage(context, 'Không thể kết nối máy chủ. Kiểm tra URL API và tường lửa mạng nội bộ.');
+      showMessage(
+        context,
+        'Không thể kết nối máy chủ. Kiểm tra URL API và tường lửa mạng nội bộ.',
+      );
     } finally {
       if (mounted) {
         setState(() => _loading = false);
@@ -298,10 +298,8 @@ class _AuthScreenState extends State<AuthScreen> {
                                 ),
                               ),
                               InkWell(
-                                onTap: () => showMessage(
-                                  context,
-                                  'Điều khoản và chính sách sẽ được bổ sung khi kết nối dịch vụ.',
-                                ),
+                                onTap: () =>
+                                    Navigator.pushNamed(context, '/terms'),
                                 child: const Padding(
                                   padding: EdgeInsets.symmetric(vertical: 14),
                                   child: Text(

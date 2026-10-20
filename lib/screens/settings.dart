@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../ui.dart';
+import '../notifications/controller.dart';
+import '../services/auth_service.dart';
 
 // Session-only preferences for the UI demo.
 final _preferences = _Preferences();
@@ -19,6 +21,12 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    NotificationController.instance.load();
+  }
+
   Future<void> _editProfile() async {
     final name = await showDialog<String>(
       context: context,
@@ -106,10 +114,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _row(
             Icons.emoji_events_outlined,
             'Nhắc nhở tập luyện',
-            trailing: _switch(
-              _preferences.reminder,
-              (v) => setState(() => _preferences.reminder = v),
+            trailing: AnimatedBuilder(
+              animation: NotificationController.instance,
+              builder: (context, _) {
+                final c = NotificationController.instance;
+                return _switch(c.localSettings.workoutEnabled, (v) async {
+                  if (c.saving) return;
+                  final saved = await c.save(
+                    c.localSettings.copyWith(workoutEnabled: v),
+                  );
+                  if (context.mounted) {
+                    showMessage(
+                      context,
+                      saved
+                          ? 'Đã lưu nhắc tập.'
+                          : c.error ?? 'Chưa lưu được cài đặt.',
+                    );
+                  }
+                });
+              },
             ),
+          ),
+          _row(
+            Icons.notifications_outlined,
+            'Lịch nhắc & thông báo',
+            onTap: () => Navigator.pushNamed(context, '/reminder-settings'),
           ),
           _row(
             Icons.monitor_heart_outlined,
@@ -135,21 +164,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _row(
             Icons.help_outline,
             'Trợ giúp & Phản hồi',
-            onTap: () => showDialog<void>(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('AI GYM — bản giao diện'),
-                content: const Text(
-                  'Khám phá các trang bằng thanh điều hướng. Dữ liệu tập luyện, hội thoại, thông báo và kết nối huấn luyện viên đều được minh họa trong phiên này.',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Đóng'),
-                  ),
-                ],
-              ),
-            ),
+            onTap: () => Navigator.pushNamed(context, '/support'),
           ),
           const SizedBox(height: 25),
           OutlinedButton.icon(
@@ -160,11 +175,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            onPressed: () => Navigator.pushNamedAndRemoveUntil(
-              context,
-              '/login',
-              (_) => false,
-            ),
+            onPressed: () async {
+              await AuthService().logout();
+              if (context.mounted) {
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/login',
+                  (_) => false,
+                );
+              }
+            },
             icon: const Icon(Icons.logout, size: 18),
             label: const Text(
               'Đăng xuất tài khoản',
@@ -172,10 +192,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          const Text(
-            'Phiên bản giao diện 1.0.0 | AI GYM',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 9, color: GymColors.muted),
+          TextButton(
+            onPressed: () => Navigator.pushNamed(context, '/support'),
+            child: const Text(
+              'Phiên bản & thông tin ứng dụng',
+              style: TextStyle(fontSize: 10),
+            ),
           ),
         ],
       ),
@@ -248,11 +270,27 @@ class CoachSettingsScreen extends StatefulWidget {
 class _CoachSettingsScreenState extends State<CoachSettingsScreen> {
   late int _voice = _preferences.voice;
   late int _motivation = _preferences.motivation;
-  late bool _water = _preferences.water,
-      _weekly = _preferences.weekly,
+  late bool _water = NotificationController.instance.localSettings.waterEnabled,
+      _weekly = NotificationController.instance.localSettings.weeklyEnabled,
       _haptic = _preferences.haptic;
 
-  void _save() {
+  bool _saving = false;
+  Future<void> _save() async {
+    if (_saving) return;
+    final c = NotificationController.instance;
+    if (_water != c.localSettings.waterEnabled ||
+        _weekly != c.localSettings.weeklyEnabled) {
+      setState(() => _saving = true);
+      final saved = await c.save(
+        c.localSettings.copyWith(waterEnabled: _water, weeklyEnabled: _weekly),
+      );
+      if (!mounted) return;
+      setState(() => _saving = false);
+      if (!saved) {
+        showMessage(context, c.error ?? 'Chưa lưu được cài đặt.');
+        return;
+      }
+    }
     _preferences
       ..voice = _voice
       ..motivation = _motivation
@@ -260,7 +298,7 @@ class _CoachSettingsScreenState extends State<CoachSettingsScreen> {
       ..weekly = _weekly
       ..haptic = _haptic;
     Navigator.pop(context);
-    showMessage(context, 'Đã lưu cài đặt trong phiên này.');
+    showMessage(context, 'Đã lưu cài đặt.');
   }
 
   @override

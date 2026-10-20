@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'services/api_client.dart';
 import 'services/auth_service.dart';
 import 'screens/auth.dart';
 import 'screens/camera.dart';
@@ -10,6 +9,11 @@ import 'screens/reset_password.dart';
 import 'screens/settings.dart';
 import 'screens/shell.dart';
 import 'ui.dart';
+import 'notifications/runtime.dart';
+import 'notifications/screens.dart';
+import 'notifications/settings_screen.dart';
+import 'notifications/api.dart';
+import 'support/screens.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,7 +26,7 @@ Future<void> main() async {
       systemNavigationBarIconBrightness: Brightness.light,
     ),
   );
-  runApp(MainApp(initialRoute: _initialRoute()));
+  runApp(NotificationRuntime(child: MainApp(initialRoute: _initialRoute())));
 }
 
 String _initialRoute() {
@@ -30,7 +34,7 @@ String _initialRoute() {
   if (fragment.startsWith('/reset-password')) {
     return fragment;
   }
-  return ApiClient.instance.token != null ? '/home' : '/login';
+  return NotificationApi().owner != null ? '/home' : '/login';
 }
 
 class MainApp extends StatelessWidget {
@@ -39,6 +43,7 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
+    navigatorKey: appNavigatorKey,
     title: 'AI GYM',
     debugShowCheckedModeBanner: false,
     theme: gymTheme(),
@@ -53,9 +58,30 @@ class MainApp extends StatelessWidget {
       '/camera': (_) => const CameraScreen(),
       '/settings': (_) => const SettingsScreen(),
       '/coach-settings': (_) => const CoachSettingsScreen(),
+      '/notifications': (_) => const NotificationsScreen(),
+      '/reminder-settings': (_) => const ReminderSettingsScreen(),
+      '/support': (_) => const SupportScreen(),
+      '/feedback': (_) => const FeedbackScreen(),
+      '/terms': (_) => const SupportScreen(document: 'terms'),
+      '/privacy': (_) => const SupportScreen(document: 'privacy'),
     },
     onGenerateRoute: (settings) {
       final route = Uri.parse(settings.name ?? '');
+      final kind = switch (route.path) {
+        '/workouts' => 'workout',
+        '/water' => 'water',
+        '/weekly-report' => 'weekly',
+        _ => null,
+      };
+      if (kind != null) {
+        return MaterialPageRoute<void>(
+          settings: settings,
+          builder: (_) => NotificationDestinationScreen(
+            kind: kind,
+            at: DateTime.tryParse(route.queryParameters['at'] ?? ''),
+          ),
+        );
+      }
       if (route.path == '/reset-password') {
         return MaterialPageRoute<void>(
           settings: settings,

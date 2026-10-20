@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../notifications/controller.dart';
+
 import '../ui.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -57,11 +59,15 @@ class HomeScreen extends StatelessWidget {
                 minimumSize: const Size(36, 36),
                 padding: const EdgeInsets.all(8),
               ),
-              onPressed: () => showMessage(
-                context,
-                'Bạn đã duy trì 12 ngày tập luyện. Tiếp tục nhé!',
+              onPressed: () => Navigator.pushNamed(context, '/notifications'),
+              icon: AnimatedBuilder(
+                animation: NotificationController.instance,
+                builder: (context, _) => Badge(
+                  isLabelVisible: NotificationController.instance.unread > 0,
+                  label: Text('${NotificationController.instance.unread}'),
+                  child: const Icon(Icons.notifications_none_rounded, size: 19),
+                ),
               ),
-              icon: const Icon(Icons.notifications_none_rounded, size: 19),
             ),
           ],
         ),
