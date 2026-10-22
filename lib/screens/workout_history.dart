@@ -106,6 +106,8 @@ class _WorkoutHistoryScreenState extends State<WorkoutHistoryScreen> {
       'squat': 'Squat',
       'pushup': 'Chống đẩy',
       'jumpingJack': 'Jumping Jack',
+      'shoulderPress': 'Đẩy vai',
+      'bicepsCurl': 'Tập tay trước',
     };
     final feedback = session['feedbackCounts'] as Map<String, dynamic>? ?? {};
     const feedbackNames = {

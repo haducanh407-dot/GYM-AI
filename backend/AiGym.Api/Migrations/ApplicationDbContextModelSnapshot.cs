@@ -374,8 +374,25 @@ namespace AiGym.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("FoodId")
+                    b.Property<decimal>("Calories")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<decimal>("Carbs")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<decimal>("Fat")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<Guid?>("FoodId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("FoodName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
 
                     b.Property<decimal>("Grams")
                         .HasPrecision(10, 2)
@@ -383,6 +400,10 @@ namespace AiGym.Api.Migrations
 
                     b.Property<Guid>("MealId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Protein")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
 
                     b.Property<decimal>("Servings")
                         .HasPrecision(10, 2)
@@ -775,8 +796,7 @@ namespace AiGym.Api.Migrations
                     b.HasOne("AiGym.Api.Models.Food", "Food")
                         .WithMany()
                         .HasForeignKey("FoodId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("AiGym.Api.Models.Meal", "Meal")
                         .WithMany("Items")
@@ -800,7 +820,7 @@ namespace AiGym.Api.Migrations
                     b.HasOne("AiGym.Api.Models.WorkoutPlan", "WorkoutPlan")
                         .WithMany("Appointments")
                         .HasForeignKey("WorkoutPlanId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("User");

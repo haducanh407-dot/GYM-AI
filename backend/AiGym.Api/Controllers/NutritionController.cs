@@ -2,6 +2,7 @@ using System.Security.Claims;
 using AiGym.Api.Data;
 using AiGym.Api.Dtos;
 using AiGym.Api.Models;
+using AiGym.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 namespace AiGym.Api.Controllers;
 
 [ApiController, Authorize, Route("api/nutrition")]
-public sealed class NutritionController(ApplicationDbContext db) : ControllerBase
+public sealed class NutritionController(ApplicationDbContext db, INutritionAnalysisService analysis) : ControllerBase
 {
     private string? UserId => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("userId");
 
@@ -32,7 +33,17 @@ public sealed class NutritionController(ApplicationDbContext db) : ControllerBas
             var prior = await db.ConfirmedScanResults.AsNoTracking().SingleOrDefaultAsync(x => x.UserId == userId && x.IdempotencyKey == request.IdempotencyKey, ct);
             if (prior is not null) return Ok(ToScan(prior));
         }
-        var result = new ConfirmedScanResult { UserId = userId, IdempotencyKey = request.IdempotencyKey, FoodName = "Estimated meal", EstimatedGrams = 100, Calories = 200, Protein = 10, Carbs = 25, Fat = 7, IsFallbackEstimate = true };
+        ConfirmedScanResult result;
+        try
+        {
+            result = await analysis.AnalyzeAsync(request, ct);
+        }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (HttpRequestException) { return StatusCode(502, new { message = "Không thể kết nối LMStudio để phân tích ảnh. Kiểm tra model hỗ trợ hình ảnh." }); }
+        catch (InvalidOperationException) { return StatusCode(502, new { message = "AI chưa trả đủ dữ liệu dinh dưỡng hợp lệ. Vui lòng thử lại với ảnh món ăn rõ hơn." }); }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested) { return StatusCode(504, new { message = "Phân tích ảnh quá thời gian chờ. Vui lòng thử lại." }); }
+        result.UserId = userId;
+        result.IdempotencyKey = string.IsNullOrWhiteSpace(request.IdempotencyKey) ? null : request.IdempotencyKey;
         db.ConfirmedScanResults.Add(result);
         await db.SaveChangesAsync(ct);
         return CreatedAtAction(nameof(GetScan), new { id = result.Id }, ToScan(result));
@@ -67,7 +78,12 @@ public sealed class NutritionController(ApplicationDbContext db) : ControllerBas
     public async Task<ActionResult<IReadOnlyList<MealResponse>>> GetMeals([FromQuery] DateOnly? date, CancellationToken ct)
     {
         var query = db.Meals.Include(x => x.Items).ThenInclude(x => x.Food).Where(x => x.UserId == UserId);
-        if (date.HasValue) query = query.Where(x => DateOnly.FromDateTime(x.ConsumedAt.UtcDateTime.Date) == date.Value);
+        if (date.HasValue)
+        {
+            var start = new DateTimeOffset(date.Value.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+            var end = start.AddDays(1);
+            query = query.Where(x => x.ConsumedAt >= start && x.ConsumedAt < end);
+        }
         var meals = await query.OrderBy(x => x.ConsumedAt).ToListAsync(ct);
         return Ok(meals.Select(ToMeal).ToList());
     }
@@ -86,7 +102,10 @@ public sealed class NutritionController(ApplicationDbContext db) : ControllerBas
         if (meal is null) return NotFound();
         var replacement = await BuildMeal(request, ct);
         if (replacement is null) return BadRequest(new { message = "Each food must exist and grams must be positive." });
-        meal.Name = replacement.Name; meal.ConsumedAt = replacement.ConsumedAt; meal.Items = replacement.Items; Recalculate(meal);
+        db.MealItems.RemoveRange(meal.Items);
+        meal.Name = replacement.Name; meal.ConsumedAt = replacement.ConsumedAt; meal.Items = replacement.Items;
+        db.MealItems.AddRange(meal.Items);
+        Recalculate(meal);
         await db.SaveChangesAsync(ct);
         return Ok(ToMeal(meal));
     }
@@ -103,7 +122,9 @@ public sealed class NutritionController(ApplicationDbContext db) : ControllerBas
     public async Task<ActionResult<NutritionSummaryResponse>> Summary([FromQuery] DateOnly? date, CancellationToken ct)
     {
         var day = date ?? DateOnly.FromDateTime(DateTime.UtcNow.Date);
-        var meals = await db.Meals.Include(x => x.Items).Where(x => x.UserId == UserId && DateOnly.FromDateTime(x.ConsumedAt.UtcDateTime.Date) == day).ToListAsync(ct);
+        var start = new DateTimeOffset(day.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+        var end = start.AddDays(1);
+        var meals = await db.Meals.Where(x => x.UserId == UserId && x.ConsumedAt >= start && x.ConsumedAt < end).ToListAsync(ct);
         var target = await db.DailyCalorieTargets.AsNoTracking().SingleOrDefaultAsync(x => x.UserId == UserId && x.Date == day, ct);
         return Ok(new NutritionSummaryResponse(day, meals.Sum(x => x.Calories), meals.Sum(x => x.Protein), meals.Sum(x => x.Carbs), meals.Sum(x => x.Fat), target?.Calories, target?.Protein, target?.Carbs, target?.Fat));
     }
@@ -133,15 +154,38 @@ public sealed class NutritionController(ApplicationDbContext db) : ControllerBas
 
     private async Task<Meal?> BuildMeal(MealRequest request, CancellationToken ct)
     {
-        if (request.Items.Length == 0 || request.Items.Any(x => x.Grams <= 0)) return null;
-        var ids = request.Items.Select(x => x.FoodId).Distinct().ToArray();
+        if (request.Items.Length == 0 || request.Items.Length > 100 || request.Items.Any(x => x.Grams <= 0) || string.IsNullOrWhiteSpace(request.Name)) return null;
+        var ids = request.Items.Where(x => x.FoodId.HasValue).Select(x => x.FoodId!.Value).Distinct().ToArray();
         var foods = await db.Foods.Where(x => ids.Contains(x.Id)).ToDictionaryAsync(x => x.Id, ct);
         if (foods.Count != ids.Length) return null;
         var meal = new Meal { Name = request.Name.Trim(), ConsumedAt = request.ConsumedAt.ToUniversalTime() };
-        foreach (var item in request.Items) meal.Items.Add(new MealItem { FoodId = item.FoodId, Food = foods[item.FoodId], Grams = item.Grams, Servings = item.Grams / 100 });
+        foreach (var item in request.Items)
+        {
+            var entry = new MealItem { FoodId = item.FoodId, Grams = item.Grams, Servings = item.Grams / 100 };
+            if (item.FoodId is Guid foodId)
+            {
+                var food = foods[foodId];
+                entry.Food = food;
+                entry.FoodName = food.Name;
+                entry.Calories = food.CaloriesPer100g * item.Grams / 100;
+                entry.Protein = food.ProteinPer100g * item.Grams / 100;
+                entry.Carbs = food.CarbsPer100g * item.Grams / 100;
+                entry.Fat = food.FatPer100g * item.Grams / 100;
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(item.Name) || item.Calories is not >= 0 or > 100000 ||
+                    item.Protein is not >= 0 or > 100000 || item.Carbs is not >= 0 or > 100000 || item.Fat is not >= 0 or > 100000)
+                    return null;
+                entry.FoodName = item.Name.Trim();
+                entry.Calories = item.Calories.Value; entry.Protein = item.Protein.Value;
+                entry.Carbs = item.Carbs.Value; entry.Fat = item.Fat.Value;
+            }
+            meal.Items.Add(entry);
+        }
         Recalculate(meal); return meal;
     }
-    private static void Recalculate(Meal meal) { meal.Calories = meal.Items.Sum(i => i.Food.CaloriesPer100g * i.Grams / 100); meal.Protein = meal.Items.Sum(i => i.Food.ProteinPer100g * i.Grams / 100); meal.Carbs = meal.Items.Sum(i => i.Food.CarbsPer100g * i.Grams / 100); meal.Fat = meal.Items.Sum(i => i.Food.FatPer100g * i.Grams / 100); }
-    private static MealResponse ToMeal(Meal x) => new(x.Id, x.Name, x.ConsumedAt, x.Calories, x.Protein, x.Carbs, x.Fat, x.Items.Select(i => new MealItemResponse(i.Id, i.FoodId, i.Food.Name, i.Grams, i.Food.CaloriesPer100g * i.Grams / 100, i.Food.ProteinPer100g * i.Grams / 100, i.Food.CarbsPer100g * i.Grams / 100, i.Food.FatPer100g * i.Grams / 100)).ToList());
+    private static void Recalculate(Meal meal) { meal.Calories = meal.Items.Sum(i => i.Calories); meal.Protein = meal.Items.Sum(i => i.Protein); meal.Carbs = meal.Items.Sum(i => i.Carbs); meal.Fat = meal.Items.Sum(i => i.Fat); }
+    private static MealResponse ToMeal(Meal x) => new(x.Id, x.Name, x.ConsumedAt, x.Calories, x.Protein, x.Carbs, x.Fat, x.Items.Select(i => new MealItemResponse(i.Id, i.FoodId, i.FoodName, i.Grams, i.Calories, i.Protein, i.Carbs, i.Fat)).ToList());
     private static ScanResponse ToScan(ConfirmedScanResult x) => new(x.Id, x.FoodName, x.EstimatedGrams, x.Calories, x.Protein, x.Carbs, x.Fat, x.IsFallbackEstimate, x.CreatedAt);
 }

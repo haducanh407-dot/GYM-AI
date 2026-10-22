@@ -93,6 +93,8 @@ class _PoseCameraScreenState extends State<PoseCameraScreen> {
           'squat',
           'pushup',
           'jumpingJack',
+          'shoulderPress',
+          'bicepsCurl',
         ].contains(exercise['exercise'])) {
           throw const FormatException();
         }

@@ -7,8 +7,8 @@ self.onmessage = async ({data}) => {
       const files = await FilesetResolver.forVisionTasks(new URL('./pose-assets', self.location.href).href);
       detector = await PoseLandmarker.createFromOptions(files, {
         baseOptions: {modelAssetPath:new URL('./pose-assets/pose_landmarker_lite.task',self.location.href).href, delegate:'CPU'},
-        runningMode:'VIDEO', numPoses:1, minPoseDetectionConfidence:.6,
-        minPosePresenceConfidence:.6, minTrackingConfidence:.6,
+        runningMode:'VIDEO', numPoses:1, minPoseDetectionConfidence:.35,
+        minPosePresenceConfidence:.35, minTrackingConfidence:.35,
       });
       self.postMessage({type:'ready'});
     } else if (data.type === 'frame') {

@@ -30,8 +30,13 @@ public sealed class MealItem
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid MealId { get; set; }
     public Meal Meal { get; set; } = null!;
-    public Guid FoodId { get; set; }
-    public Food Food { get; set; } = null!;
+    public Guid? FoodId { get; set; }
+    public Food? Food { get; set; }
+    public string FoodName { get; set; } = string.Empty;
+    public decimal Calories { get; set; }
+    public decimal Protein { get; set; }
+    public decimal Carbs { get; set; }
+    public decimal Fat { get; set; }
     public decimal Servings { get; set; }
     public decimal Grams { get; set; }
 }

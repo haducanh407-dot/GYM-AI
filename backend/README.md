@@ -29,6 +29,13 @@ Khi dua len may that, doi `Jwt:Key` sang secret rieng va khong commit secret san
 
 LMStudio can chay tai `http://127.0.0.1:1234`, da nap model `qwen/qwen3.5-9b`,
 sau do khoi dong lai backend de ap dung cau hinh.
+Chat backend dung native API `POST /api/v1/chat` voi `reasoning: off` de model
+khong dung het gioi han token cho suy luan va tra loi rong. Can phien ban LMStudio
+ho tro API nay va model ho tro tat reasoning; chi noi dung `output` loai `message`
+duoc tra ve ung dung.
+Phan hoi chat duoc yeu cau ngan gon (toi da 100 tu, gioi han 256 token).
+Backend cho toi da 15 phut cho model local cham; neu het thoi gian se tra JSON
+HTTP 504 thay vi loi 500 khong doc duoc tren app.
 
 ## Tai khoan va role seed san
 

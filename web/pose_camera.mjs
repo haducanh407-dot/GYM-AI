@@ -4,7 +4,7 @@ import { PoseSession } from './pose_session.mjs';
 const $ = id => document.getElementById(id);
 const video = $('video'), canvas = $('skeleton'), context = canvas.getContext('2d');
 const engine = new PoseWorkout();
-const names = {squat:'Squat',pushup:'Chống đẩy',jumpingJack:'Jumping Jack'};
+const names = {squat:'Squat',pushup:'Chống đẩy',jumpingJack:'Jumping Jack',shoulderPress:'Đẩy vai',bicepsCurl:'Tập tay trước'};
 const edges = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28],[27,29],[29,31],[28,30],[30,32]];
 let stream, worker, session, pending, saveTimer, animation, lastFrame = -1, lastTimestamp = 0;
 let busy = false, ready = false, running = false, opening = false, disposed = false, saved = false;
@@ -17,7 +17,7 @@ window.addEventListener('message', event => {
   try { message = JSON.parse(event.data); } catch (_) { return; }
   if (message.type !== 'aigym:configure') return;
   const exercise = message.exercise;
-  if (!['squat', 'pushup', 'jumpingJack'].includes(exercise)) return;
+  if (!['squat', 'pushup', 'jumpingJack', 'shoulderPress', 'bicepsCurl'].includes(exercise)) return;
   $('exercise').value = exercise;
   $('exercise').disabled = true;
   status(`Bài đang chọn: ${names[exercise]}. Bấm Mở camera để bắt đầu.`);
@@ -72,11 +72,12 @@ function dispose() {
   clearInterval(clockTimer);
   if ('speechSynthesis' in window) speechSynthesis.removeEventListener('voiceschanged',voiceSupport);
 }
-function draw(landmarks, width, height, bad) {
+function draw(landmarks, width, height, state) {
   if (canvas.width !== width || canvas.height !== height) { canvas.width=width;canvas.height=height; }
   clearOverlay();
-  const visible = p => p && p.visibility >= .6 && p.x>=0 && p.x<=1 && p.y>=0 && p.y<=1;
-  context.strokeStyle=bad ? '#ffad55' : '#b779ff'; context.fillStyle='#75f7c5'; context.lineWidth=3;
+  const visible = p => p && p.visibility >= .25 && p.x>=0 && p.x<=1 && p.y>=0 && p.y<=1;
+  const color=state==='bad' ? '#ff3b30' : state==='good' ? '#35e06f' : '#b779ff';
+  context.strokeStyle=color; context.fillStyle=color; context.lineWidth=3;
   for (const [a,b] of edges) {
     if (!visible(landmarks[a]) || !visible(landmarks[b])) continue;
     context.beginPath();context.moveTo(landmarks[a].x*width,landmarks[a].y*height);
@@ -130,11 +131,21 @@ async function open() {
       if(data.type==='error'){releaseCamera();status('Không phân tích được khung hình. Hãy mở lại camera.');return;}
       if(data.type!=='pose'||!running)return;
       const result=engine.update(data.landmarks,data.timestamp,data.width,data.height);
-      draw(data.landmarks,data.width,data.height,result.feedbackCodes.length>0);
+      const state=!result.tracking ? 'neutral' : result.feedbackCodes.length ? 'bad' : 'good';
+      draw(data.landmarks,data.width,data.height,state);
       $('badge').textContent=result.exercise ? names[result.exercise] : 'Đang nhận diện bài';
+      $('badge').className=`badge ${state}`;
       $('reps').textContent=result.reps; $('correct').textContent=result.correctReps; $('incorrect').textContent=result.incorrectReps;
-      const feedback=result.feedback.join(' ') || (result.tracking ? 'Tiếp tục động tác đủ biên độ.' : 'Đặt toàn thân trong khung hình.');
+      $('live-reps').textContent=result.reps;
+      $('live-correct').textContent=result.correctReps;
+      $('live-incorrect').textContent=result.incorrectReps;
+      const feedback=result.feedback.join(' ') || (result.tracking
+        ? 'Tiếp tục động tác đủ biên độ.'
+        : $('exercise').value === 'shoulderPress'
+          ? 'Lùi camera để thấy vai và ít nhất một cổ tay.'
+          : 'Đặt toàn thân trong khung hình.');
       $('feedback').textContent=feedback;
+      $('feedback').className=state;
       if(result.feedbackCodes.length || !result.tracking) speak(feedback);
       else if(result.reps>previousReps) speak(`${result.reps} lần.`,false);
       previousReps=result.reps;

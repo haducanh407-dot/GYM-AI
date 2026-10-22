@@ -25,9 +25,9 @@ Trên máy hiện tại, Flutter nằm ở `C:\Users\Phoebe\flutter` nhưng chư
 
 Để chạy trên Android/iOS, chọn thiết bị từ `flutter devices` rồi dùng `flutter run -d <device-id>`. Build iOS cần macOS và Xcode. Bản web ở màn hình lớn được giới hạn chiều rộng 480 px; trên điện thoại giao diện dùng toàn bộ chiều rộng.
 
-Chọn **Khám phá bản giao diện** ở trang đăng nhập để vào nhanh, hoặc nhập email/số điện thoại hợp lệ và mật khẩu bất kỳ. Luồng đăng ký kiểm tra họ tên, email/điện thoại, mật khẩu tối thiểu 8 ký tự, xác nhận mật khẩu và điều khoản, rồi mở ba bước onboarding.
+Chọn **Đăng nhập tài khoản demo** ở trang đăng nhập để vào nhanh bằng tài khoản demo có kết nối backend, hoặc nhập email/số điện thoại hợp lệ và mật khẩu. Luồng đăng ký kiểm tra họ tên, email/điện thoại, mật khẩu tối thiểu 8 ký tự, xác nhận mật khẩu và điều khoản, rồi mở ba bước onboarding.
 
-Tài khoản demo có sẵn: **admin123@gmail.com**, mật khẩu **123123123Az!**. Nhập đúng thông tin này ở trang đăng nhập để vào trang chủ. Đây là tài khoản minh họa cục bộ, chưa có xác thực máy chủ hoặc quyền quản trị.
+Tài khoản demo có sẵn: **admin123@gmail.com**, mật khẩu **123123123Az!**. Nhập đúng thông tin này ở trang đăng nhập hoặc chọn nút đăng nhập demo để vào trang chủ. Đăng nhập qua backend giúp lưu và khôi phục lịch sử AI Coach.
 
 ## Màn hình và mã nguồn
 

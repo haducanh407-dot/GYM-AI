@@ -33,6 +33,13 @@ public sealed class AiController : ControllerBase
                 cancellationToken);
             return Ok(new AiChatResponse(reply));
         }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return StatusCode(StatusCodes.Status504GatewayTimeout, new
+            {
+                message = "LMStudio phản hồi quá chậm. Hãy thử câu hỏi ngắn hơn hoặc dùng model nhẹ hơn."
+            });
+        }
         catch (HttpRequestException)
         {
             return StatusCode(StatusCodes.Status503ServiceUnavailable, new

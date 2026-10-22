@@ -280,6 +280,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         {
             services.AddDbContext<ApplicationDbContext>(options => options.UseInMemoryDatabase(_databaseName));
             services.AddSingleton<IEmailSender>(EmailSender);
+            services.Configure<AiGym.Api.Options.LmStudioOptions>(options => options.BaseUrl = "http://localhost:1234");
         });
     }
 

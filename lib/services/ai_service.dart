@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:http/http.dart' as http;
+
 import 'api_client.dart';
 
 class AiService {
@@ -15,7 +17,7 @@ class AiService {
       'message': message,
       ...?conversationId == null ? null : {'conversationId': conversationId},
     }, includeAuth: true);
-    final body = jsonDecode(response.body);
+    final body = _decodeResponse(response);
     if (response.statusCode >= 400) {
       throw ApiException(
         response.statusCode,
@@ -25,6 +27,17 @@ class AiService {
       );
     }
     return Map<String, dynamic>.from(body as Map);
+  }
+
+  dynamic _decodeResponse(http.Response response) {
+    try {
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    } on FormatException {
+      throw ApiException(
+        response.statusCode,
+        'Máy chủ trả về dữ liệu không hợp lệ. Hãy kiểm tra backend và LMStudio.',
+      );
+    }
   }
 
   Future<List<Map<String, dynamic>>> conversations() async {

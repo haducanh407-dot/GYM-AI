@@ -76,7 +76,7 @@ namespace AiGym.Api.Migrations
                         column: x => x.WorkoutPlanId,
                         principalTable: "WorkoutPlans",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(

@@ -83,7 +83,11 @@ class _CoachScreenState extends State<CoachScreen> {
           ..clear()
           ..addAll(messages);
       });
-    } catch (_) {}
+    } catch (error) {
+      if (mounted) {
+        showMessage(context, 'Không thể tải lịch sử Coach: $error');
+      }
+    }
     try {
       final insights = await _aiService.insights();
       if (mounted) setState(() => _insights = insights);

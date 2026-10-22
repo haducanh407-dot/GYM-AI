@@ -12,13 +12,22 @@ class NutritionFood {
 
   factory NutritionFood.fromJson(Map<String, dynamic> json) => NutritionFood(
     name: (json['name'] ?? json['foodName'] ?? '').toString(),
-    id: (json['id'] ?? json['foodId'])?.toString(),
+    id: json.containsKey('estimatedGrams')
+        ? null
+        : (json.containsKey('foodId') ? json['foodId'] : json['id'])
+              ?.toString(),
     servings: _number(json['servings'] ?? json['quantity'], 1),
-    grams: _number(json['grams'], 100),
-    calories: _number(json['calories'] ?? json['kcal']),
-    protein: _number(json['protein'] ?? json['proteinGrams']),
-    carbs: _number(json['carbs'] ?? json['carbohydrates']),
-    fat: _number(json['fat'] ?? json['fatGrams']),
+    grams: _number(json['grams'] ?? json['estimatedGrams'], 100),
+    calories: _number(
+      json['calories'] ?? json['caloriesPer100g'] ?? json['kcal'],
+    ),
+    protein: _number(
+      json['protein'] ?? json['proteinPer100g'] ?? json['proteinGrams'],
+    ),
+    carbs: _number(
+      json['carbs'] ?? json['carbsPer100g'] ?? json['carbohydrates'],
+    ),
+    fat: _number(json['fat'] ?? json['fatPer100g'] ?? json['fatGrams']),
   );
 
   final String name;
@@ -78,15 +87,21 @@ class NutritionEntry {
     final raw = json['foods'] ?? json['items'] ?? const [];
     return NutritionEntry(
       id: (json['id'] ?? json['entryId'] ?? '').toString(),
-      date: DateTime.tryParse(
-            (json['date'] ?? json['consumedAt'] ?? json['loggedAt'] ?? '').toString(),
+      date:
+          DateTime.tryParse(
+            (json['date'] ?? json['consumedAt'] ?? json['loggedAt'] ?? '')
+                .toString(),
           )?.toLocal() ??
           DateTime.now(),
-      mealType: (json['mealType'] ?? json['name'] ?? json['meal'] ?? 'Bữa ăn').toString(),
+      mealType: (json['mealType'] ?? json['name'] ?? json['meal'] ?? 'Bữa ăn')
+          .toString(),
       foods: raw is List
           ? raw
                 .whereType<Map>()
-                .map((item) => NutritionFood.fromJson(Map<String, dynamic>.from(item)))
+                .map(
+                  (item) =>
+                      NutritionFood.fromJson(Map<String, dynamic>.from(item)),
+                )
                 .toList()
           : const [],
       note: json['note']?.toString(),
@@ -99,20 +114,32 @@ class NutritionEntry {
   final List<NutritionFood> foods;
   final String? note;
 
-  double get calories => foods.fold(0, (sum, food) => sum + food.calories * food.servings);
-  double get protein => foods.fold(0, (sum, food) => sum + food.protein * food.servings);
-  double get carbs => foods.fold(0, (sum, food) => sum + food.carbs * food.servings);
-  double get fat => foods.fold(0, (sum, food) => sum + food.fat * food.servings);
+  double get calories =>
+      foods.fold(0, (sum, food) => sum + food.calories * food.servings);
+  double get protein =>
+      foods.fold(0, (sum, food) => sum + food.protein * food.servings);
+  double get carbs =>
+      foods.fold(0, (sum, food) => sum + food.carbs * food.servings);
+  double get fat =>
+      foods.fold(0, (sum, food) => sum + food.fat * food.servings);
 
   Map<String, dynamic> toJson() => {
     'name': mealType,
     'consumedAt': date.toUtc().toIso8601String(),
     'items': foods
-        .where((food) => food.id != null)
-        .map((food) => {
-          'foodId': food.id,
-          'grams': food.grams ?? food.servings * 100,
-        })
+        .map(
+          (food) =>           {
+            'foodId': food.id,
+            'grams': (food.grams ?? 100) * food.servings,
+            if (food.id == null) ...{
+              'name': food.name,
+              'calories': food.calories * food.servings,
+              'protein': food.protein * food.servings,
+              'carbs': food.carbs * food.servings,
+              'fat': food.fat * food.servings,
+            },
+          },
+        )
         .toList(),
   };
 }

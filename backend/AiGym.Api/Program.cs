@@ -79,9 +79,15 @@ builder.Services.AddHttpClient<ILmStudioService, LmStudioService>((serviceProvid
         .GetRequiredService<Microsoft.Extensions.Options.IOptions<LmStudioOptions>>()
         .Value;
     client.BaseAddress = new Uri($"{options.BaseUrl.TrimEnd('/')}/");
-    client.Timeout = TimeSpan.FromMinutes(5);
+    client.Timeout = TimeSpan.FromMinutes(15);
 });
 builder.Services.AddControllers();
+builder.Services.AddHttpClient<INutritionAnalysisService, NutritionAnalysisService>((serviceProvider, client) =>
+{
+    var options = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<LmStudioOptions>>().Value;
+    client.BaseAddress = new Uri($"{options.BaseUrl.TrimEnd('/')}/");
+    client.Timeout = TimeSpan.FromMinutes(15);
+});
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>

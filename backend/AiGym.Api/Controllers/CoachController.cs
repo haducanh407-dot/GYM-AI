@@ -42,27 +42,76 @@ public sealed class CoachController(ApplicationDbContext db, ILmStudioService ai
         }
         if (conversation.Messages.Count >= 100)
             return StatusCode(StatusCodes.Status429TooManyRequests, new { message = "Conversation limit reached." });
-        conversation.Messages.Add(new CoachMessage { Sender = "user", Content = text, Status = "completed" });
+        var userMessage = new CoachMessage
+        {
+            ConversationId = conversation.Id,
+            Sender = "user",
+            Content = text,
+            Status = "completed"
+        };
+        db.CoachMessages.Add(userMessage);
         try
         {
             var profile = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == UserId, ct);
-            var recentContext = string.Join("\n", conversation.Messages.OrderByDescending(x => x.CreatedAt)
+            var recentContext = string.Join("\n", conversation.Messages
+                .Where(x => x.Id != userMessage.Id && x.Status == "completed").OrderByDescending(x => x.CreatedAt)
                 .Take(6).Reverse().Select(x => $"{x.Sender}: {x.Content}"));
             var context = $"Hồ sơ: mục tiêu={profile?.Goal ?? "chưa có"}, trình độ={profile?.TrainingLevel ?? "chưa có"}, " +
                           $"địa điểm={profile?.TrainingLocation ?? "chưa có"}. Lịch sử hội thoại gần đây:\n{recentContext}";
             var reply = await ai.ChatAsync(text, ct, context);
-            conversation.Messages.Add(new CoachMessage { Sender = "assistant", Content = reply, Status = "completed" });
+            var assistantMessage = new CoachMessage
+            {
+                ConversationId = conversation.Id,
+                Sender = "assistant",
+                Content = reply,
+                Status = "completed"
+            };
+            db.CoachMessages.Add(assistantMessage);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             throw;
         }
+        catch (OperationCanceledException)
+        {
+            return StatusCode(StatusCodes.Status504GatewayTimeout, new
+            {
+                message = "LMStudio phản hồi quá chậm. Hãy thử câu hỏi ngắn hơn hoặc dùng model nhẹ hơn."
+            });
+        }
         catch (HttpRequestException)
         {
-            conversation.Messages.Add(new CoachMessage { Sender = "assistant", Content = "Coach tạm thời không khả dụng.", Status = "failed" });
+            var failedMessage = new CoachMessage
+            {
+                ConversationId = conversation.Id,
+                Sender = "assistant",
+                Content = "Coach tạm thời không khả dụng.",
+                Status = "failed"
+            };
+            db.CoachMessages.Add(failedMessage);
             conversation.UpdatedAt = DateTimeOffset.UtcNow;
             await db.SaveChangesAsync(ct);
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, ToResponse(conversation));
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+            {
+                message = "Không thể kết nối LMStudio. Hãy mở LMStudio và nạp model AI phù hợp."
+            });
+        }
+        catch (InvalidOperationException)
+        {
+            var failedMessage = new CoachMessage
+            {
+                ConversationId = conversation.Id,
+                Sender = "assistant",
+                Content = "LMStudio trả về dữ liệu không hợp lệ. Kiểm tra model và endpoint LMStudio.",
+                Status = "failed"
+            };
+            db.CoachMessages.Add(failedMessage);
+            conversation.UpdatedAt = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync(ct);
+            return StatusCode(StatusCodes.Status502BadGateway, new
+            {
+                message = "LMStudio trả về dữ liệu không hợp lệ. Kiểm tra model và endpoint LMStudio."
+            });
         }
         conversation.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);

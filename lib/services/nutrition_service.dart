@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:http/http.dart' as http;
+
 import '../models/nutrition.dart';
 import 'api_client.dart';
 
@@ -32,9 +34,7 @@ class NutritionService {
     }, includeAuth: true);
     final decoded = _decode(response);
     if (decoded is Map && decoded['foodName'] != null) {
-      return [
-        NutritionFood.fromJson(Map<String, dynamic>.from(decoded)),
-      ];
+      return [NutritionFood.fromJson(Map<String, dynamic>.from(decoded))];
     }
     final list = decoded is List
         ? decoded
@@ -81,32 +81,9 @@ class NutritionService {
   }
 
   Future<NutritionEntry> create(NutritionEntry entry) async {
-    var normalized = entry;
-    final foods = <NutritionFood>[];
-    for (final food in entry.foods) {
-      if (food.id != null) {
-        foods.add(food);
-      } else {
-        final matches = await searchFoods(food.name);
-        final fallback = matches.isEmpty ? await searchFoods('') : matches;
-        if (fallback.isEmpty) {
-          throw const FormatException(
-            'Không tìm thấy món ăn trong cơ sở dữ liệu.',
-          );
-        }
-        foods.add(food.copyWith(id: fallback.first.id));
-      }
-    }
-    normalized = NutritionEntry(
-      id: entry.id,
-      date: entry.date,
-      mealType: entry.mealType,
-      foods: foods,
-      note: entry.note,
-    );
     final response = await _api.post(
       '/api/nutrition/meals',
-      normalized.toJson(),
+      entry.toJson(),
       includeAuth: true,
     );
     return NutritionEntry.fromJson(_object(response));
@@ -134,14 +111,25 @@ class NutritionService {
     }
   }
 
-  dynamic _decode(dynamic response) {
+  dynamic _decode(http.Response response) {
+    dynamic body;
+    try {
+      body = jsonDecode(utf8.decode(response.bodyBytes));
+    } on FormatException {
+      throw ApiException(
+        response.statusCode,
+        'Máy chủ trả về dữ liệu dinh dưỡng không hợp lệ.',
+      );
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw ApiException(
         response.statusCode,
-        'Không tải được dữ liệu dinh dưỡng.',
+        body is Map && body['message'] is String
+            ? body['message'] as String
+            : 'Không tải được dữ liệu dinh dưỡng.',
       );
     }
-    return jsonDecode(response.body);
+    return body;
   }
 
   Map<String, dynamic> _object(dynamic response) {

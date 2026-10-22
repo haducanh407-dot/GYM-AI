@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../models/nutrition.dart';
 import '../services/nutrition_service.dart';
+import '../services/api_client.dart';
 import '../ui.dart';
 
 class NutritionScreen extends StatefulWidget {
@@ -23,6 +24,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
   Uint8List? _preview;
   List<NutritionFood> _foods = [];
   bool _loading = false;
+  bool _analyzing = false;
   String? _error;
 
   @override
@@ -69,6 +71,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
         _foods = [];
         _error = null;
         _loading = true;
+        _analyzing = true;
       });
       final foods = await _service.estimate(
         image: bytes,
@@ -76,26 +79,42 @@ class _NutritionScreenState extends State<NutritionScreen> {
       );
       if (mounted) setState(() => _foods = foods);
     } catch (error) {
-      if (mounted) setState(() => _error = 'Không thể phân tích ảnh: $error');
+      if (mounted) {
+        setState(
+          () => _error = 'Không thể phân tích ảnh: ${_errorText(error)}',
+        );
+      }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _analyzing = false;
+        });
+      }
     }
   }
 
-  String _mime(String name) =>
-      name.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+  String _mime(String name) {
+    final extension = name.toLowerCase();
+    if (extension.endsWith('.png')) return 'image/png';
+    if (extension.endsWith('.webp')) return 'image/webp';
+    return 'image/jpeg';
+  }
 
   Future<void> _addManual() async {
     final food = await showDialog<NutritionFood>(
       context: context,
       builder: (_) => const _FoodDialog(),
     );
-    if (food != null) setState(() => _foods = [..._foods, food]);
+    if (food != null && mounted) setState(() => _foods = [..._foods, food]);
   }
 
   Future<void> _save() async {
     if (_foods.isEmpty) return;
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final entry = await _service.create(
         NutritionEntry(
@@ -110,10 +129,13 @@ class _NutritionScreenState extends State<NutritionScreen> {
         _entries = [entry, ..._entries];
         _preview = null;
         _foods = [];
+        _dailySummary = null;
       });
       showMessage(context, 'Đã lưu bữa ăn vào nhật ký.');
     } catch (error) {
-      if (mounted) setState(() => _error = 'Không thể lưu bữa ăn: $error');
+      if (mounted) {
+        setState(() => _error = 'Không thể lưu bữa ăn: ${_errorText(error)}');
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -122,7 +144,12 @@ class _NutritionScreenState extends State<NutritionScreen> {
   Future<void> _delete(NutritionEntry entry) async {
     try {
       await _service.delete(entry.id);
-      if (mounted) setState(() => _entries.remove(entry));
+      if (mounted) {
+        setState(() {
+          _entries.remove(entry);
+          _dailySummary = null;
+        });
+      }
     } catch (error) {
       if (mounted) showMessage(context, 'Không thể xóa: $error');
     }
@@ -148,6 +175,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
         setState(() {
           final index = _entries.indexOf(entry);
           if (index >= 0) _entries[index] = updated;
+          _dailySummary = null;
         });
       }
     } catch (error) {
@@ -181,13 +209,28 @@ class _NutritionScreenState extends State<NutritionScreen> {
           children: [
             _summary(calories, protein, carbs, fat),
             const SizedBox(height: 14),
-            if (_preview != null) ...[
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.memory(_preview!, height: 180, fit: BoxFit.cover),
-              ),
+            if (_preview != null || _foods.isNotEmpty) ...[
+              if (_preview != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.memory(
+                    _preview!,
+                    height: 180,
+                    fit: BoxFit.cover,
+                  ),
+                ),
               const SizedBox(height: 10),
               if (_loading) const LinearProgressIndicator(),
+              if (_analyzing)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 10),
+                  child: Text('AI đang phân tích món ăn trong ảnh…'),
+                ),
+              if (_preview != null && _foods.isNotEmpty)
+                const Text(
+                  'Ước tính từ ảnh cho toàn bộ phần ăn. Kiểm tra khẩu phần và chỉnh trước khi lưu.',
+                  style: TextStyle(color: GymColors.muted, fontSize: 12),
+                ),
               if (_error != null)
                 Text(_error!, style: const TextStyle(color: Colors.orange)),
               ..._foods.asMap().entries.map(
@@ -197,7 +240,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: _addManual,
+                      onPressed: _loading ? null : _addManual,
                       icon: const Icon(Icons.add),
                       label: const Text('Thêm món'),
                     ),
@@ -212,10 +255,13 @@ class _NutritionScreenState extends State<NutritionScreen> {
                 ],
               ),
               TextButton(
-                onPressed: () => setState(() {
-                  _preview = null;
-                  _foods = [];
-                }),
+                onPressed: _loading
+                    ? null
+                    : () => setState(() {
+                        _preview = null;
+                        _foods = [];
+                        _error = null;
+                      }),
                 child: const Text('Chụp lại / chọn ảnh khác'),
               ),
             ] else ...[
@@ -251,7 +297,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
                       ],
                     ),
                     TextButton.icon(
-                      onPressed: _addManual,
+                      onPressed: _loading ? null : _addManual,
                       icon: const Icon(Icons.edit_outlined),
                       label: const Text('Nhập thủ công'),
                     ),
@@ -324,17 +370,22 @@ class _NutritionScreenState extends State<NutritionScreen> {
     contentPadding: EdgeInsets.zero,
     title: Text(food.name.isEmpty ? 'Món ăn' : food.name),
     subtitle: Text(
-      '${food.calories.round()} kcal · ${food.servings} khẩu phần',
+      '${(food.calories * food.servings).round()} kcal · ${((food.grams ?? 100) * food.servings).round()} g\n'
+      'Protein ${(food.protein * food.servings).round()}g · Carb ${(food.carbs * food.servings).round()}g · Fat ${(food.fat * food.servings).round()}g',
     ),
     trailing: IconButton(
       icon: const Icon(Icons.edit_outlined),
-      onPressed: () async {
-        final edited = await showDialog<NutritionFood>(
-          context: context,
-          builder: (_) => _FoodDialog(initial: food),
-        );
-        if (edited != null) setState(() => _foods[index] = edited);
-      },
+      onPressed: _loading
+          ? null
+          : () async {
+              final edited = await showDialog<NutritionFood>(
+                context: context,
+                builder: (_) => _FoodDialog(initial: food),
+              );
+              if (edited != null && mounted) {
+                setState(() => _foods[index] = edited);
+              }
+            },
     ),
   );
 
@@ -383,6 +434,8 @@ class _NutritionScreenState extends State<NutritionScreen> {
       : '${date.day}/${date.month}/${date.year}';
   bool _sameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
+  String _errorText(Object error) =>
+      error is ApiException ? error.message : '$error';
 }
 
 class _FoodDialog extends StatefulWidget {
@@ -393,42 +446,82 @@ class _FoodDialog extends StatefulWidget {
 }
 
 class _FoodDialogState extends State<_FoodDialog> {
+  final _form = GlobalKey<FormState>();
   late final _name = TextEditingController(text: widget.initial?.name);
-  late final _calories = TextEditingController(
-    text: '${widget.initial?.calories ?? ''}',
-  );
-  late final _servings = TextEditingController(
-    text: '${widget.initial?.servings ?? 1}',
-  );
+  late final _values = <String, TextEditingController>{
+    'Khối lượng (g)': TextEditingController(
+      text: '${widget.initial?.grams ?? 100}',
+    ),
+    'Calo (kcal)': TextEditingController(
+      text: '${widget.initial?.calories ?? 0}',
+    ),
+    'Protein (g)': TextEditingController(
+      text: '${widget.initial?.protein ?? 0}',
+    ),
+    'Carb (g)': TextEditingController(text: '${widget.initial?.carbs ?? 0}'),
+    'Fat (g)': TextEditingController(text: '${widget.initial?.fat ?? 0}'),
+    'Khẩu phần': TextEditingController(
+      text: '${widget.initial?.servings ?? 1}',
+    ),
+  };
+
+  double _value(String label) =>
+      double.parse(_values[label]!.text.replaceAll(',', '.'));
+
   @override
   void dispose() {
     _name.dispose();
-    _calories.dispose();
-    _servings.dispose();
+    for (final controller in _values.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Món ăn'),
-    content: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        TextField(
-          controller: _name,
-          decoration: const InputDecoration(labelText: 'Tên món'),
+    title: const Text('Dinh dưỡng mỗi khẩu phần'),
+    content: SingleChildScrollView(
+      child: Form(
+        key: _form,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _name,
+              maxLength: 120,
+              decoration: const InputDecoration(labelText: 'Tên món'),
+              validator: (value) =>
+                  value == null || value.trim().isEmpty ? 'Nhập tên món' : null,
+            ),
+            ..._values.entries.map(
+              (entry) => TextFormField(
+                controller: entry.value,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: InputDecoration(labelText: entry.key),
+                validator: (value) {
+                  final number = double.tryParse(
+                    (value ?? '').replaceAll(',', '.'),
+                  );
+                  final positive =
+                      entry.key == 'Khối lượng (g)' || entry.key == 'Khẩu phần';
+                  if (number == null ||
+                      !number.isFinite ||
+                      number < 0 ||
+                      (positive && number <= 0) ||
+                      number > 100000) {
+                    return positive
+                        ? 'Nhập số dương hợp lệ'
+                        : 'Nhập số không âm hợp lệ';
+                  }
+                  return null;
+                },
+              ),
+            ),
+          ],
         ),
-        TextField(
-          controller: _calories,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Calo (kcal)'),
-        ),
-        TextField(
-          controller: _servings,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Khẩu phần'),
-        ),
-      ],
+      ),
     ),
     actions: [
       TextButton(
@@ -436,15 +529,22 @@ class _FoodDialogState extends State<_FoodDialog> {
         child: const Text('Hủy'),
       ),
       FilledButton(
-        onPressed: () => Navigator.pop(
-          context,
-          NutritionFood(
-            name: _name.text.trim(),
-            calories: double.tryParse(_calories.text) ?? 0,
-            servings: double.tryParse(_servings.text) ?? 1,
-          ),
-        ),
-        child: const Text('Thêm'),
+        onPressed: () {
+          if (!_form.currentState!.validate()) return;
+          Navigator.pop(
+            context,
+            NutritionFood(
+              name: _name.text.trim(),
+              grams: _value('Khối lượng (g)'),
+              calories: _value('Calo (kcal)'),
+              protein: _value('Protein (g)'),
+              carbs: _value('Carb (g)'),
+              fat: _value('Fat (g)'),
+              servings: _value('Khẩu phần'),
+            ),
+          );
+        },
+        child: const Text('Áp dụng'),
       ),
     ],
   );

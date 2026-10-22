@@ -20,30 +20,25 @@ public sealed class LmStudioService : ILmStudioService
     public async Task<string> ChatAsync(
         string message, CancellationToken cancellationToken, string? context = null)
     {
-        var systemPrompt = string.IsNullOrWhiteSpace(context)
-            ? "Ban la tro ly AI GYM, tra loi ngan gon, huu ich va an toan ve tap luyen, dinh duong."
-            : $"Ban la tro ly AI GYM. Chi dung du lieu nguoi dung duoc cung cap de tham khao, khong tu biet them. {context}";
+        var systemPrompt = "Ban la tro ly AI GYM. Tra loi bang tieng Viet, toi da 100 tu, " +
+            "di thang vao cau hoi, khong lap lai ho so. Dung kien thuc tap luyen an toan de goi y. " +
+            "Khong bia thong tin ca nhan hay lich tap cua nguoi noi tieng khi chua co nguon. " +
+            $"Ho so va lich su chi de tham khao: {context}";
         var request = new
         {
             model = _options.Model,
-            messages = new[]
-            {
-                new
-                {
-                    role = "system",
-                    content = systemPrompt
-                },
-                new
-                {
-                    role = "user",
-                    content = message
-                }
-            },
-            temperature = 0.7
+            system_prompt = systemPrompt,
+            input = message,
+            // Prevent reasoning from consuming the entire answer budget.
+            reasoning = "off",
+            store = false,
+            stream = false,
+            temperature = 0.7,
+            max_output_tokens = 256
         };
 
         using var response = await _httpClient.PostAsJsonAsync(
-            "chat/completions",
+            "/api/v1/chat",
             request,
             cancellationToken);
 
@@ -54,8 +49,21 @@ public sealed class LmStudioService : ILmStudioService
                 $"LMStudio returned {(int)response.StatusCode}: {responseBody}");
         }
 
-        var completion = JsonSerializer.Deserialize<LmStudioChatResponse>(responseBody);
-        var content = completion?.Choices.FirstOrDefault()?.Message.Content;
+        LmStudioChatResponse? completion;
+        try
+        {
+            completion = JsonSerializer.Deserialize<LmStudioChatResponse>(responseBody);
+        }
+        catch (JsonException exception)
+        {
+            throw new InvalidOperationException(
+                "LMStudio returned a response that was not valid JSON.",
+                exception);
+        }
+
+        var content = string.Join("\n", (completion?.Output ?? [])
+            .Where(item => item.Type == "message" && !string.IsNullOrWhiteSpace(item.Content))
+            .Select(item => item.Content!.Trim()));
         if (string.IsNullOrWhiteSpace(content))
         {
             throw new InvalidOperationException("LMStudio returned an empty chat response.");
@@ -65,11 +73,9 @@ public sealed class LmStudioService : ILmStudioService
     }
 
     private sealed record LmStudioChatResponse(
-        [property: JsonPropertyName("choices")] IReadOnlyList<Choice> Choices);
+        [property: JsonPropertyName("output")] IReadOnlyList<OutputItem>? Output);
 
-    private sealed record Choice(
-        [property: JsonPropertyName("message")] Message Message);
-
-    private sealed record Message(
-        [property: JsonPropertyName("content")] string Content);
+    private sealed record OutputItem(
+        [property: JsonPropertyName("type")] string? Type,
+        [property: JsonPropertyName("content")] string? Content);
 }

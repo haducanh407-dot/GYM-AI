@@ -82,7 +82,7 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(x => new { x.UserId, x.StartsAt });
             entity.Property(x => x.Status).HasMaxLength(30).IsRequired();
             entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
-            entity.HasOne(x => x.WorkoutPlan).WithMany(x => x.Appointments).HasForeignKey(x => x.WorkoutPlanId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.WorkoutPlan).WithMany(x => x.Appointments).HasForeignKey(x => x.WorkoutPlanId).OnDelete(DeleteBehavior.Restrict);
         });
         builder.Entity<Food>(entity =>
         {
@@ -102,6 +102,11 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         });
         builder.Entity<MealItem>(entity =>
         {
+            entity.Property(x => x.FoodName).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.Calories).HasPrecision(10, 2);
+            entity.Property(x => x.Protein).HasPrecision(10, 2);
+            entity.Property(x => x.Carbs).HasPrecision(10, 2);
+            entity.Property(x => x.Fat).HasPrecision(10, 2);
             entity.HasOne(x => x.Meal).WithMany(x => x.Items).HasForeignKey(x => x.MealId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.Food).WithMany().HasForeignKey(x => x.FoodId).OnDelete(DeleteBehavior.Restrict);
             entity.Property(x => x.Grams).HasPrecision(10, 2);
