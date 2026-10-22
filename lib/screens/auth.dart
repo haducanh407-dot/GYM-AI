@@ -77,6 +77,7 @@ class _AuthScreenState extends State<AuthScreen> {
         if (mounted) {
           setState(() => _loading = false);
         }
+
       }
       return;
     }
@@ -89,12 +90,11 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() => _loading = true);
     try {
       if (widget.register) {
-        final auth = await _authService.register(
+        await _authService.register(
           fullName: _fullName.text,
           email: _contact.text,
           password: _password.text,
         );
-        await _authService.saveSession(auth);
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/onboarding');
       } else {
@@ -117,6 +117,12 @@ class _AuthScreenState extends State<AuthScreen> {
         setState(() => _loading = false);
       }
     }
+  }
+
+  Future<void> _loginDemo() async {
+    _contact.text = 'admin123@gmail.com';
+    _password.text = '123123123Az!';
+    await _submit();
   }
 
   Widget _field({
@@ -372,13 +378,9 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                     const SizedBox(height: 12),
                     TextButton(
-                      onPressed: () => Navigator.pushNamedAndRemoveUntil(
-                        context,
-                        '/home',
-                        (_) => false,
-                      ),
+                      onPressed: _loading ? null : _loginDemo,
                       child: const Text(
-                        'Khám phá bản giao diện',
+                        'Đăng nhập tài khoản demo',
                         style: TextStyle(fontSize: 11, color: GymColors.muted),
                       ),
                     ),

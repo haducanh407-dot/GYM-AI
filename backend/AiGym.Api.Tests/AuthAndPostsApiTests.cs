@@ -4,6 +4,8 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using AiGym.Api.Services;
+using AiGym.Api.Data;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -366,6 +368,7 @@ public sealed class AuthAndPostsApiTests : IClassFixture<ApiFactory>
 public sealed class ApiFactory : WebApplicationFactory<Program>
 {
     private readonly string _databaseName = $"aigym-tests-{Guid.NewGuid():N}";
+    private readonly string _databaseName = $"aigym-tests-{Guid.NewGuid()}";
     public FakeEmailSender EmailSender { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -374,7 +377,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Testing:DatabaseName", _databaseName);
         builder.ConfigureTestServices(services =>
         {
+            services.AddDbContext<ApplicationDbContext>(options => options.UseInMemoryDatabase(_databaseName));
             services.AddSingleton<IEmailSender>(EmailSender);
+            services.Configure<AiGym.Api.Options.LmStudioOptions>(options => options.BaseUrl = "http://localhost:1234");
         });
     }
 
