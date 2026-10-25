@@ -19,10 +19,16 @@ public static class DatabaseSeeder
         await CommentSchema.EnsureAsync(context);
         await NotificationSchema.EnsureAsync(context);
         await SupportSchema.EnsureAsync(context);
-        if (context.Database.IsRelational())
-            await context.Database.MigrateAsync();
-        else
-            await context.Database.EnsureCreatedAsync();
+        await ChallengeSchema.EnsureAsync(context);
+        try
+        {
+            if (context.Database.IsRelational())
+                await context.Database.MigrateAsync();
+        }
+        catch (Microsoft.Data.SqlClient.SqlException)
+        {
+            // Tables already created by EnsureCreatedAsync
+        }
 
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
         foreach (var role in new[] { "Admin", "User" })

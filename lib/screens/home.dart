@@ -146,6 +146,53 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
+              const SizedBox(height: 14),
+              GymCard(
+                child: InkWell(
+                  onTap: () => Navigator.pushNamed(context, '/challenges'),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: GymColors.purple.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.emoji_events_rounded,
+                          color: GymColors.purple,
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Thử thách Gym & Huy chương',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Tham gia thử thách, tích lũy tiến độ & nhận huy chương',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: GymColors.muted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right, color: GymColors.muted),
+                    ],
+                  ),
+                ),
+              ),
               SectionHeading(
                 title: 'Bài tập đề xuất',
                 action: 'Xem thêm',

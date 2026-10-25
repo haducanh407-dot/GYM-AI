@@ -30,6 +30,7 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ConfirmedScanResult> ConfirmedScanResults => Set<ConfirmedScanResult>();
     public DbSet<CoachConversation> CoachConversations => Set<CoachConversation>();
     public DbSet<CoachMessage> CoachMessages => Set<CoachMessage>();
+    public DbSet<UserChallenge> UserChallenges => Set<UserChallenge>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -130,6 +131,7 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             // Avoid SQL Server's multiple cascade paths through the post author.
             entity.HasOne<ApplicationUser>().WithMany()
                 .HasForeignKey(like => like.UserId).OnDelete(DeleteBehavior.NoAction);
+        });
         builder.Entity<Exercise>(entity =>
         {
             entity.Property(x => x.Name).HasMaxLength(120).IsRequired();
@@ -209,6 +211,15 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(x => new { x.ConversationId, x.CreatedAt });
             entity.HasOne(x => x.Conversation).WithMany(x => x.Messages)
                 .HasForeignKey(x => x.ConversationId).OnDelete(DeleteBehavior.Cascade);
+        });
+        builder.Entity<UserChallenge>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.UserId, x.ChallengeId }).IsUnique();
+            entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.Property(x => x.ChallengeId).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.LastProgressDate).HasMaxLength(10);
+            entity.Property(x => x.DailyLogsJson).HasDefaultValue("[]");
         });
     }
 }

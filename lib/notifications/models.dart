@@ -60,21 +60,20 @@ class ReminderSettings {
     String? weeklyTime,
     String? timeZone,
     int? revision,
-  }) => ReminderSettings.fromJson({
-    ...toJson(),
-    'workoutEnabled': ?workoutEnabled,
-    'workoutTime': ?workoutTime,
-    'workoutDays': ?workoutDays,
-    'waterEnabled': ?waterEnabled,
-    'waterStart': ?waterStart,
-    'waterEnd': ?waterEnd,
-    'waterIntervalMinutes': ?waterIntervalMinutes,
-    'weeklyEnabled': ?weeklyEnabled,
-    'weeklyDay': ?weeklyDay,
-    'weeklyTime': ?weeklyTime,
-    'timeZone': ?timeZone,
-    'revision': ?revision,
-  });
+  }) => ReminderSettings(
+    workoutEnabled: workoutEnabled ?? this.workoutEnabled,
+    workoutTime: workoutTime ?? this.workoutTime,
+    workoutDays: workoutDays ?? this.workoutDays,
+    waterEnabled: waterEnabled ?? this.waterEnabled,
+    waterStart: waterStart ?? this.waterStart,
+    waterEnd: waterEnd ?? this.waterEnd,
+    waterIntervalMinutes: waterIntervalMinutes ?? this.waterIntervalMinutes,
+    weeklyEnabled: weeklyEnabled ?? this.weeklyEnabled,
+    weeklyDay: weeklyDay ?? this.weeklyDay,
+    weeklyTime: weeklyTime ?? this.weeklyTime,
+    timeZone: timeZone ?? this.timeZone,
+    revision: revision ?? this.revision,
+  );
 }
 
 class InboxNotification {

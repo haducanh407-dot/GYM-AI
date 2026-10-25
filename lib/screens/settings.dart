@@ -4,7 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../ui.dart';
 import '../notifications/controller.dart';
 import '../services/auth_service.dart';
-import '../services/auth_service.dart';
 import '../services/api_client.dart';
 import '../services/profile_service.dart';
 import '../services/health_service.dart';
@@ -129,7 +128,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
-          ),
           _section('TÀI KHOẢN'),
           _row(
             Icons.lock_outline,
@@ -197,7 +195,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () => showMessage(
               context,
               'Apple Health chưa được kết nối. Các chỉ số hiện là dữ liệu mẫu.',
-            if (ProfileService.instance.error != null)
+            ),
+          ),
+          if (ProfileService.instance.error != null)
               TextButton(
                 onPressed: ProfileService.instance.load,
                 child: Text('${ProfileService.instance.error} · Thử lại'),
@@ -242,6 +242,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: const Text('Cập nhật thông tin cơ thể & mục tiêu'),
             ),
             _section('TÀI KHOẢN'),
+            _row(
+              Icons.emoji_events_outlined,
+              'Thử thách & Huy chương',
+              onTap: () => Navigator.pushNamed(context, '/challenges'),
+            ),
+            _row(
+              Icons.military_tech_outlined,
+              'Thi đua Huy chương & Bạn bè',
+              onTap: () => Navigator.pushNamed(context, '/friends-competition'),
+            ),
             _row(
               Icons.history,
               'Lịch sử tập luyện',

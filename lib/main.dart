@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 
 import 'services/auth_service.dart';
 import 'screens/auth.dart';
+import 'screens/challenges.dart';
+import 'screens/friends_competition.dart';
 import 'screens/pose_camera.dart';
 import 'screens/workout_history.dart';
 import 'screens/workout_plans.dart';
@@ -67,10 +69,13 @@ class MainApp extends StatelessWidget {
       '/coach-settings': (_) => const CoachSettingsScreen(),
       '/notifications': (_) => const NotificationsScreen(),
       '/reminder-settings': (_) => const ReminderSettingsScreen(),
+      '/challenges': (_) => const ChallengesScreen(),
+      '/friends-competition': (_) => const FriendsCompetitionScreen(),
       '/support': (_) => const SupportScreen(),
       '/feedback': (_) => const FeedbackScreen(),
       '/terms': (_) => const SupportScreen(document: 'terms'),
       '/privacy': (_) => const SupportScreen(document: 'privacy'),
+      '/ai-test': (_) => const AITestPage(),
     },
     onGenerateRoute: (settings) {
       final route = Uri.parse(settings.name ?? '');
@@ -86,10 +91,9 @@ class MainApp extends StatelessWidget {
           builder: (_) => NotificationDestinationScreen(
             kind: kind,
             at: DateTime.tryParse(route.queryParameters['at'] ?? ''),
-      '/ai-test': (_) => const AITestPage(),
-    },
-    onGenerateRoute: (settings) {
-      final route = Uri.parse(settings.name ?? '');
+          ),
+        );
+      }
       if (route.path == '/camera') {
         return MaterialPageRoute<void>(
           settings: settings,
