@@ -10,14 +10,19 @@ class ReminderSettings {
     this.weeklyEnabled = false,
     this.weeklyDay = 7,
     this.weeklyTime = '20:00',
+    this.inactivityReminderEnabled = false,
     this.timeZone = 'Asia/Bangkok',
     this.revision = 0,
   });
-  final bool workoutEnabled, waterEnabled, weeklyEnabled;
+  final bool workoutEnabled, waterEnabled, weeklyEnabled, inactivityReminderEnabled;
   final String workoutTime, waterStart, waterEnd, weeklyTime, timeZone;
   final List<int> workoutDays;
   final int waterIntervalMinutes, weeklyDay, revision;
-  bool get anyEnabled => workoutEnabled || waterEnabled || weeklyEnabled;
+  bool get anyEnabled =>
+      workoutEnabled ||
+      waterEnabled ||
+      weeklyEnabled ||
+      inactivityReminderEnabled;
   Map<String, dynamic> toJson() => {
     'workoutEnabled': workoutEnabled,
     'workoutTime': workoutTime,
@@ -29,6 +34,7 @@ class ReminderSettings {
     'weeklyEnabled': weeklyEnabled,
     'weeklyDay': weeklyDay,
     'weeklyTime': weeklyTime,
+    'inactivityReminderEnabled': inactivityReminderEnabled,
     'timeZone': timeZone,
     'revision': revision,
   };
@@ -44,6 +50,7 @@ class ReminderSettings {
     weeklyEnabled: j['weeklyEnabled'] == true,
     weeklyDay: j['weeklyDay'] as int? ?? 7,
     weeklyTime: j['weeklyTime'] as String? ?? '20:00',
+    inactivityReminderEnabled: j['inactivityReminderEnabled'] == true,
     timeZone: j['timeZone'] as String? ?? 'Asia/Bangkok',
     revision: j['revision'] as int? ?? 0,
   );
@@ -58,6 +65,7 @@ class ReminderSettings {
     bool? weeklyEnabled,
     int? weeklyDay,
     String? weeklyTime,
+    bool? inactivityReminderEnabled,
     String? timeZone,
     int? revision,
   }) => ReminderSettings(
@@ -71,6 +79,8 @@ class ReminderSettings {
     weeklyEnabled: weeklyEnabled ?? this.weeklyEnabled,
     weeklyDay: weeklyDay ?? this.weeklyDay,
     weeklyTime: weeklyTime ?? this.weeklyTime,
+    inactivityReminderEnabled:
+        inactivityReminderEnabled ?? this.inactivityReminderEnabled,
     timeZone: timeZone ?? this.timeZone,
     revision: revision ?? this.revision,
   );
@@ -101,6 +111,7 @@ class NotificationLink {
   String get route {
     final path = switch (kind) {
       'workout' => '/workouts',
+      'inactivity' || 'inactivity_2' || 'inactivity_3' => '/workouts',
       'water' => '/water',
       'weekly' => '/weekly-report',
       _ => '/notifications',

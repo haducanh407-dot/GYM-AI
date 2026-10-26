@@ -69,7 +69,15 @@ class NotificationController extends ChangeNotifier {
     workoutEnabled: s.workoutEnabled && !_blocked.contains('workout'),
     waterEnabled: s.waterEnabled && !_blocked.contains('water'),
     weeklyEnabled: s.weeklyEnabled && !_blocked.contains('weekly'),
+    inactivityReminderEnabled:
+        s.inactivityReminderEnabled && !_blocked.contains('inactivity'),
   );
+
+  Future<void> recordActivity() async {
+    final account = owner;
+    if (account == null || _disposed) return;
+    await _device(_effective(settings), account);
+  }
   Future<void> load({bool more = false}) async {
     if (saving || _disposed) return;
     final account = owner;
@@ -150,6 +158,7 @@ class NotificationController extends ChangeNotifier {
       if (!draft.workoutEnabled) _blocked.add('workout');
       if (!draft.waterEnabled) _blocked.add('water');
       if (!draft.weeklyEnabled) _blocked.add('weekly');
+      if (!draft.inactivityReminderEnabled) _blocked.add('inactivity');
       final prefs = await SharedPreferences.getInstance();
       await prefs.setStringList('reminder_blocks_$account', _blocked.toList());
       await _device(_effective(settings), account);

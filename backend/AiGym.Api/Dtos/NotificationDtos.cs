@@ -14,6 +14,7 @@ public sealed class ReminderSettingsDto
     public bool WeeklyEnabled { get; set; }
     public int WeeklyDay { get; set; } = 7;
     public string WeeklyTime { get; set; } = "20:00";
+    public bool InactivityReminderEnabled { get; set; } = true;
     public string TimeZone { get; set; } = "Asia/Bangkok";
     public long Revision { get; set; }
 
@@ -46,6 +47,7 @@ public sealed class ReminderSettingsDto
         settings.WaterEnabled = WaterEnabled; settings.WaterStartMinute = start; settings.WaterEndMinute = end;
         settings.WaterIntervalMinutes = WaterIntervalMinutes;
         settings.WeeklyEnabled = WeeklyEnabled; settings.WeeklyDay = WeeklyDay; settings.WeeklyMinute = weekly;
+        settings.InactivityReminderEnabled = InactivityReminderEnabled;
         settings.TimeZone = TimeZone;
     }
 
@@ -55,7 +57,9 @@ public sealed class ReminderSettingsDto
         WorkoutDays = s.WorkoutDays.Split(',').Select(int.Parse).ToArray(),
         WaterEnabled = s.WaterEnabled, WaterStart = Format(s.WaterStartMinute), WaterEnd = Format(s.WaterEndMinute),
         WaterIntervalMinutes = s.WaterIntervalMinutes, WeeklyEnabled = s.WeeklyEnabled,
-        WeeklyDay = s.WeeklyDay, WeeklyTime = Format(s.WeeklyMinute), TimeZone = s.TimeZone, Revision = s.Revision
+        WeeklyDay = s.WeeklyDay, WeeklyTime = Format(s.WeeklyMinute),
+        InactivityReminderEnabled = s.InactivityReminderEnabled,
+        TimeZone = s.TimeZone, Revision = s.Revision
     };
     private static string Format(int minute) => $"{minute / 60:00}:{minute % 60:00}";
 }

@@ -78,4 +78,82 @@ public sealed class NotificationsApiTests : IClassFixture<ApiFactory>
         Assert.Equal(HttpStatusCode.NoContent,(await b.SendAsync(delete)).StatusCode);
         using(var scope=_factory.Services.CreateScope())Assert.True(await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().BrowserPushSubscriptions.AnyAsync(s=>s.Endpoint==endpoint && s.UserId==user.GetProperty("userId").GetString()));
     }
+
+    [Fact]
+    public async Task InactivityNotifications_TriggersOnTwoAndThreeDaysAbsence_DuolingoStyle()
+    {
+        using var client = _factory.CreateClient();
+        var response = await client.PostAsJsonAsync("/api/auth/register", new {
+            fullName = "Duolingo Tester",
+            email = $"duo-{Guid.NewGuid():N}@example.com",
+            password = "Password123!"
+        });
+        response.EnsureSuccessStatusCode();
+        var auth = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var userId = auth.GetProperty("userId").GetString()!;
+        var token = auth.GetProperty("token").GetString()!;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        // Turn on InactivityReminderEnabled
+        var saveSettings = await client.PutAsJsonAsync("/api/notifications/settings", new {
+            workoutEnabled = false,
+            workoutTime = "18:00",
+            workoutDays = new[] {1, 2, 3, 4, 5, 6, 7},
+            waterEnabled = false,
+            waterStart = "09:00",
+            waterEnd = "21:00",
+            waterIntervalMinutes = 120,
+            weeklyEnabled = false,
+            weeklyDay = 7,
+            weeklyTime = "20:00",
+            inactivityReminderEnabled = true,
+            timeZone = "Asia/Bangkok"
+        });
+        saveSettings.EnsureSuccessStatusCode();
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            // Add a workout session that occurred 2.5 days ago
+            db.WorkoutSessions.Add(new WorkoutSession
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                StartedAt = DateTimeOffset.UtcNow.AddDays(-2.5),
+                DurationSeconds = 600,
+                ExercisesJson = "[]",
+                FeedbackCountsJson = "{}"
+            });
+            await db.SaveChangesAsync();
+
+            var scheduler = scope.ServiceProvider.GetRequiredService<NotificationScheduler>();
+            await scheduler.TickAsync(DateTime.UtcNow, userId);
+
+            var notification = await db.UserNotifications
+                .Where(n => n.UserId == userId && n.Kind == "inactivity_2")
+                .FirstOrDefaultAsync();
+            Assert.NotNull(notification);
+            Assert.Contains("lửa vụt tắt", notification.Title);
+            Assert.Contains("2 ngày", notification.Body);
+        }
+
+        // Test day 3 inactivity
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var session = await db.WorkoutSessions.FirstAsync(w => w.UserId == userId);
+            session.StartedAt = DateTimeOffset.UtcNow.AddDays(-3.5);
+            await db.SaveChangesAsync();
+
+            var scheduler = scope.ServiceProvider.GetRequiredService<NotificationScheduler>();
+            await scheduler.TickAsync(DateTime.UtcNow, userId);
+
+            var notification3 = await db.UserNotifications
+                .Where(n => n.UserId == userId && n.Kind == "inactivity_3")
+                .FirstOrDefaultAsync();
+            Assert.NotNull(notification3);
+            Assert.Contains("nhớ bạn lắm rồi", notification3.Title);
+            Assert.Contains("3 ngày", notification3.Body);
+        }
+    }
 }

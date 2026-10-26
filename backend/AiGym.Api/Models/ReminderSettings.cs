@@ -13,9 +13,17 @@ public sealed class ReminderSettings
     public bool WeeklyEnabled { get; set; }
     public int WeeklyDay { get; set; } = 7;
     public int WeeklyMinute { get; set; } = 1200;
+    public bool InactivityReminderEnabled { get; set; } = true;
     public string TimeZone { get; set; } = "Asia/Bangkok";
     public long Revision { get; set; }
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public DateTime LastProcessedUtc { get; set; } = DateTime.UtcNow;
-    public bool Enabled(string kind) => kind switch { "workout" => WorkoutEnabled, "water" => WaterEnabled, "weekly" => WeeklyEnabled, _ => false };
+    public bool Enabled(string kind) => kind switch
+    {
+        "workout" => WorkoutEnabled,
+        "water" => WaterEnabled,
+        "weekly" => WeeklyEnabled,
+        "inactivity" or "inactivity_2" or "inactivity_3" => InactivityReminderEnabled,
+        _ => false
+    };
 }

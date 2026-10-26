@@ -44,11 +44,26 @@ globalThis.gymNotifications = (() => {
       const state = await gymNotificationStore.read();
       if (state?.owner !== owner) return;
       const settings = JSON.parse(value);
-      await gymNotificationStore.write({...state, enabled: {workout: settings.workoutEnabled, water: settings.waterEnabled, weekly: settings.weeklyEnabled}});
-      if (!settings.workoutEnabled || !settings.waterEnabled || !settings.weeklyEnabled) {
+      await gymNotificationStore.write({
+        ...state,
+        enabled: {
+          workout: settings.workoutEnabled,
+          water: settings.waterEnabled,
+          weekly: settings.weeklyEnabled,
+          inactivity: settings.inactivityReminderEnabled,
+          inactivity_2: settings.inactivityReminderEnabled,
+          inactivity_3: settings.inactivityReminderEnabled,
+        }
+      });
+      if (!settings.workoutEnabled || !settings.waterEnabled || !settings.weeklyEnabled || !settings.inactivityReminderEnabled) {
         const reg = await registration();
-        for (const notification of await reg.getNotifications())
-          if (!settings[`${notification.data?.kind}Enabled`]) notification.close();
+        for (const notification of await reg.getNotifications()) {
+          const kind = notification.data?.kind;
+          const isEnabled = kind?.startsWith('inactivity')
+            ? settings.inactivityReminderEnabled
+            : settings[`${kind}Enabled`];
+          if (!isEnabled) notification.close();
+        }
       }
     },
     async deactivate() {

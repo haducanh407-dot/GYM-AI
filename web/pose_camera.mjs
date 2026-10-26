@@ -147,7 +147,7 @@ async function open() {
       $('feedback').textContent=feedback;
       $('feedback').className=state;
       if(result.feedbackCodes.length || !result.tracking) speak(feedback);
-      else if(result.reps>previousReps) speak(`${result.reps} lần.`,false);
+      else if(result.reps>previousReps) speak(`${result.reps} lần.`,true);
       previousReps=result.reps;
     };
     ready=true; lastFrame=-1; resume();animation=requestAnimationFrame(frame);

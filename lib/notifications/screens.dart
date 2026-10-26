@@ -64,9 +64,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 child: ListTile(
                   leading: Icon(switch (n.kind) {
                     'workout' => Icons.fitness_center,
+                    'inactivity' || 'inactivity_2' || 'inactivity_3' =>
+                      Icons.local_fire_department,
                     'water' => Icons.water_drop_outlined,
                     _ => Icons.insert_chart_outlined,
-                  }, color: n.read ? GymColors.muted : GymColors.purple),
+                  },
+                      color: n.read
+                          ? GymColors.muted
+                          : (n.kind.startsWith('inactivity')
+                              ? Colors.deepOrangeAccent
+                              : GymColors.purple)),
                   title: Text(
                     n.title,
                     style: TextStyle(
@@ -150,7 +157,11 @@ class NotificationDestinationScreen extends StatelessWidget {
             onPressed: () => Navigator.pushNamed(context, '/reminder-settings'),
             child: const Text('Cài đặt lịch nhắc'),
           ),
-          if (kind == 'workout')
+          if (kind == 'workout') ...[
+            TextButton(
+              onPressed: () => Navigator.pushNamed(context, '/workout-plans'),
+              child: const Text('Xem danh sách bài tập'),
+            ),
             TextButton(
               onPressed: () => Navigator.pushNamedAndRemoveUntil(
                 context,
@@ -159,6 +170,7 @@ class NotificationDestinationScreen extends StatelessWidget {
               ),
               child: const Text('Mở Trang chủ'),
             ),
+          ],
         ],
       ),
     );

@@ -184,6 +184,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           _row(
+            Icons.local_fire_department_outlined,
+            'Nhắc nghỉ tập 2-3 ngày (Duolingo)',
+            trailing: AnimatedBuilder(
+              animation: NotificationController.instance,
+              builder: (context, _) {
+                final c = NotificationController.instance;
+                return _switch(c.localSettings.inactivityReminderEnabled, (v) async {
+                  if (c.saving) return;
+                  final saved = await c.save(
+                    c.localSettings.copyWith(inactivityReminderEnabled: v),
+                  );
+                  if (context.mounted) {
+                    showMessage(
+                      context,
+                      saved
+                          ? 'Đã cập nhật nhắc nghỉ tập kiểu Duolingo.'
+                          : c.error ?? 'Chưa lưu được cài đặt.',
+                    );
+                  }
+                });
+              },
+            ),
+          ),
+          _row(
             Icons.notifications_outlined,
             'Lịch nhắc & thông báo',
             onTap: () => Navigator.pushNamed(context, '/reminder-settings'),

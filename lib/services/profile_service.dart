@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import 'api_client.dart';
+import '../notifications/controller.dart';
 
 class ProfileService extends ChangeNotifier {
   ProfileService({ApiClient? api}) : _api = api ?? ApiClient.instance;
@@ -102,7 +104,10 @@ class ProfileService extends ChangeNotifier {
         'Chưa lưu được phiên tập. Vui lòng thử lại.',
       );
     }
-    if (generation == _generation && token == _api.token) await load();
+    if (generation == _generation && token == _api.token) {
+      await load();
+      unawaited(NotificationController.instance.recordActivity());
+    }
   }
 
   Map<String, dynamic> _decode(http.Response response) {

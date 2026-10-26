@@ -171,5 +171,75 @@ class NativeNotificationPlatform implements NotificationPlatform {
         ),
       );
     }
+
+    if (settings.inactivityReminderEnabled) {
+      final workoutMinutes = minutes(settings.workoutTime);
+      final hour = workoutMinutes ~/ 60;
+      final minute = workoutMinutes % 60;
+
+      // Day 2 inactivity reminder (48h)
+      var atDay2 = tz.TZDateTime(
+        location,
+        now.year,
+        now.month,
+        now.day + 2,
+        hour,
+        minute,
+      );
+      if (!atDay2.isAfter(now)) {
+        atDay2 = atDay2.add(const Duration(days: 1));
+      }
+      await _plugin.zonedSchedule(
+        id: 400002,
+        scheduledDate: atDay2,
+        title: 'Đừng để lửa vụt tắt! 🔥',
+        body:
+            'Đã 2 ngày rồi bạn chưa ghé AI GYM! Cơ bắp đang nhớ bạn đấy 💪 Dành 10 phút tập luyện ngay thôi!',
+        notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'reminders',
+            'Nhắc nhở AI GYM',
+            importance: Importance.high,
+            priority: Priority.high,
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        payload: jsonEncode(
+          NotificationLink(owner: owner, kind: 'inactivity_2').toJson(),
+        ),
+      );
+
+      // Day 3 inactivity reminder (72h - Duolingo dramatic style)
+      var atDay3 = tz.TZDateTime(
+        location,
+        now.year,
+        now.month,
+        now.day + 3,
+        hour,
+        minute,
+      );
+      if (!atDay3.isAfter(now)) {
+        atDay3 = atDay3.add(const Duration(days: 1));
+      }
+      await _plugin.zonedSchedule(
+        id: 400003,
+        scheduledDate: atDay3,
+        title: 'AI GYM nhớ bạn lắm rồi... 🥺',
+        body:
+            'Đã 3 ngày bạn chưa vào tập! Chuỗi cố gắng trước giờ đừng để lãng phí nhé. Bật app lên khởi động nhẹ cùng AI Coach nào!',
+        notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'reminders',
+            'Nhắc nhở AI GYM',
+            importance: Importance.high,
+            priority: Priority.high,
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        payload: jsonEncode(
+          NotificationLink(owner: owner, kind: 'inactivity_3').toJson(),
+        ),
+      );
+    }
   }
 }

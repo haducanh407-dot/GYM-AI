@@ -151,19 +151,34 @@ void main() {
       expect(settings.workoutEnabled, isFalse);
       expect(settings.waterEnabled, isFalse);
       expect(settings.weeklyEnabled, isFalse);
+      expect(settings.inactivityReminderEnabled, isFalse);
       final edited = settings.copyWith(
         waterEnabled: true,
         waterIntervalMinutes: 180,
+        inactivityReminderEnabled: true,
       );
       final restored = ReminderSettings.fromJson(edited.toJson());
       expect(restored.waterEnabled, isTrue);
       expect(restored.waterIntervalMinutes, 180);
       expect(restored.workoutTime, '18:00');
+      expect(restored.inactivityReminderEnabled, isTrue);
     },
   );
   test('notification links use only recognized destinations', () {
     expect(
       NotificationLink(owner: 'a', kind: 'workout').route,
+      startsWith('/workouts'),
+    );
+    expect(
+      NotificationLink(owner: 'a', kind: 'inactivity').route,
+      startsWith('/workouts'),
+    );
+    expect(
+      NotificationLink(owner: 'a', kind: 'inactivity_2').route,
+      startsWith('/workouts'),
+    );
+    expect(
+      NotificationLink(owner: 'a', kind: 'inactivity_3').route,
       startsWith('/workouts'),
     );
     expect(
@@ -178,6 +193,18 @@ void main() {
       NotificationLink(owner: 'a', kind: 'https://bad.example').route,
       '/notifications',
     );
+  });
+  test('inactivity reminder switch can be toggled and saved', () async {
+    final api = FakeNotificationsApi();
+    final device = FakeNotificationPlatform();
+    final c = NotificationController(api: api, platform: device);
+    await c.load();
+    expect(c.settings.inactivityReminderEnabled, isFalse);
+    final saved = await c.save(c.settings.copyWith(inactivityReminderEnabled: true));
+    expect(saved, isTrue);
+    expect(c.settings.inactivityReminderEnabled, isTrue);
+    expect(device.last!.inactivityReminderEnabled, isTrue);
+    c.dispose();
   });
 }
 

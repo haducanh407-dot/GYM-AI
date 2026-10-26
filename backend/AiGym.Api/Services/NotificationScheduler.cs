@@ -18,20 +18,31 @@ public sealed class NotificationScheduler(ApplicationDbContext db)
             {
                 var id = ReminderSchedule.EventId(s.UserId, kind, utc);
                 var (title, body) = ReminderSchedule.Copy(kind);
-                if (db.Database.IsSqlServer())
+                await InsertNotificationAsync(s.UserId, id, kind, title, body, utc, utcNow, s.Revision);
+            }
+            if (s.InactivityReminderEnabled)
+            {
+                var lastWorkout = await db.WorkoutSessions.AsNoTracking()
+                    .Where(w => w.UserId == s.UserId)
+                    .OrderByDescending(w => w.StartedAt)
+                    .Select(w => (DateTimeOffset?)w.StartedAt)
+                    .FirstOrDefaultAsync();
+                var baseline = lastWorkout?.UtcDateTime ?? s.UpdatedAt;
+                var inactiveDays = (utcNow - baseline).TotalDays;
+                string? inactivityKind = null;
+                if (inactiveDays >= 3.0 && inactiveDays < 5.0)
                 {
-                    await db.Database.ExecuteSqlInterpolatedAsync($"""
-                        INSERT INTO dbo.UserNotifications
-                        (Id, UserId, Kind, Title, Body, ScheduledAtUtc, CreatedAt, SettingsRevision, PushSent, PushAttempts)
-                        SELECT {id}, {s.UserId}, {kind}, {title}, {body}, {utc}, {utcNow}, {s.Revision}, {false}, {0}
-                        WHERE NOT EXISTS (SELECT 1 FROM dbo.UserNotifications WITH (UPDLOCK, HOLDLOCK) WHERE Id = {id})
-                        """);
+                    inactivityKind = "inactivity_3";
                 }
-                else if (!await db.UserNotifications.AnyAsync(n => n.Id == id))
+                else if (inactiveDays >= 2.0 && inactiveDays < 3.0)
                 {
-                    db.UserNotifications.Add(new UserNotification { Id = id, UserId = s.UserId, Kind = kind,
-                        Title = title, Body = body, ScheduledAtUtc = utc, CreatedAt = utcNow, SettingsRevision = s.Revision });
-                    await db.SaveChangesAsync();
+                    inactivityKind = "inactivity_2";
+                }
+                if (inactivityKind is not null)
+                {
+                    var id = ReminderSchedule.EventId(s.UserId, inactivityKind, utcNow.Date);
+                    var (title, body) = ReminderSchedule.Copy(inactivityKind);
+                    await InsertNotificationAsync(s.UserId, id, inactivityKind, title, body, utcNow, utcNow, s.Revision);
                 }
             }
             if (db.Database.IsRelational())
@@ -42,6 +53,25 @@ public sealed class NotificationScheduler(ApplicationDbContext db)
                 var tracked = await db.ReminderSettings.FindAsync(s.UserId);
                 if (tracked is not null && tracked.Revision == s.Revision) { tracked.LastProcessedUtc = utcNow; await db.SaveChangesAsync(); }
             }
+        }
+    }
+
+    private async Task InsertNotificationAsync(string userId, Guid id, string kind, string title, string body, DateTime utc, DateTime utcNow, long revision)
+    {
+        if (db.Database.IsSqlServer())
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO dbo.UserNotifications
+                (Id, UserId, Kind, Title, Body, ScheduledAtUtc, CreatedAt, SettingsRevision, PushSent, PushAttempts)
+                SELECT {id}, {userId}, {kind}, {title}, {body}, {utc}, {utcNow}, {revision}, {false}, {0}
+                WHERE NOT EXISTS (SELECT 1 FROM dbo.UserNotifications WITH (UPDLOCK, HOLDLOCK) WHERE Id = {id})
+                """);
+        }
+        else if (!await db.UserNotifications.AnyAsync(n => n.Id == id))
+        {
+            db.UserNotifications.Add(new UserNotification { Id = id, UserId = userId, Kind = kind,
+                Title = title, Body = body, ScheduledAtUtc = utc, CreatedAt = utcNow, SettingsRevision = revision });
+            await db.SaveChangesAsync();
         }
     }
 }

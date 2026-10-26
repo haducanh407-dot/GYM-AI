@@ -38,6 +38,9 @@ public static class ReminderSchedule
     {
         "workout" => ("Đến giờ tập luyện", "Dành thời gian cho buổi tập hôm nay. Chạm để xem lịch tập."),
         "water" => ("Nhắc uống nước", "Đến giờ nghỉ một chút và uống nước. Chạm để xem lịch nhắc."),
+        "inactivity_2" => ("Đừng để lửa vụt tắt! 🔥", "Đã 2 ngày rồi bạn chưa ghé AI GYM! Cơ bắp đang nhớ bạn đấy 💪 Dành 10 phút tập luyện ngay thôi!"),
+        "inactivity_3" => ("AI GYM nhớ bạn lắm rồi... 🥺", "Đã 3 ngày bạn chưa vào tập! Chuỗi cố gắng trước giờ đừng để lãng phí nhé. Bật app lên khởi động nhẹ cùng AI Coach nào!"),
+        "inactivity" => ("Đừng để lửa vụt tắt! 🔥", "Đã 2-3 ngày bạn chưa vào tập! Bật app lên luyện tập cùng AI Coach để giữ vững phong độ nhé!"),
         _ => ("Báo cáo tuần", "Nhìn lại tuần vừa qua. Chạm để mở báo cáo tuần.")
     };
 }

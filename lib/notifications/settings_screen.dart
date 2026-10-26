@@ -124,6 +124,95 @@ class _ReminderSettingsScreenState extends State<ReminderSettingsScreen> {
                         ),
                     ],
                   ),
+                  const SizedBox(height: 12),
+                  GymCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.local_fire_department,
+                              color: Colors.deepOrangeAccent,
+                              size: 24,
+                            ),
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: Text(
+                                'Nhắc nhở nghỉ tập (Kiểu Duolingo)',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ),
+                            Switch(
+                              value: s.inactivityReminderEnabled,
+                              onChanged: c.saving
+                                  ? null
+                                  : (v) => setState(
+                                      () => _draft = s.copyWith(
+                                        inactivityReminderEnabled: v,
+                                      ),
+                                    ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Tự động gửi thông báo hài hước & động lực nếu bạn không vào tập sau 2 hoặc 3 ngày để bảo vệ chuỗi tập luyện (streak).',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: GymColors.muted,
+                            height: 1.4,
+                          ),
+                        ),
+                        if (s.inactivityReminderEnabled) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: GymColors.background,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Colors.deepOrangeAccent.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: const Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('🔥 Sau 2 ngày: ', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Colors.orangeAccent)),
+                                    Expanded(
+                                      child: Text(
+                                        '"Đừng để lửa vụt tắt! Đã 2 ngày bạn chưa vào tập..."',
+                                        style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: 6),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('🥺 Sau 3 ngày: ', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Colors.deepOrange)),
+                                    Expanded(
+                                      child: Text(
+                                        '"AI GYM nhớ bạn lắm rồi! Cơ bắp đang biểu tình..."',
+                                        style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                   const Divider(),
                   SwitchListTile(
                     title: const Text('Nhắc uống nước'),

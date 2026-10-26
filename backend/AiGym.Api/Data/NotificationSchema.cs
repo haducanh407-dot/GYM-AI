@@ -10,8 +10,14 @@ public static class NotificationSchema
           UserId nvarchar(450) NOT NULL PRIMARY KEY REFERENCES dbo.AspNetUsers(Id) ON DELETE CASCADE,
           WorkoutEnabled bit NOT NULL, WorkoutMinute int NOT NULL, WorkoutDays nvarchar(20) NOT NULL,
           WaterEnabled bit NOT NULL, WaterStartMinute int NOT NULL, WaterEndMinute int NOT NULL, WaterIntervalMinutes int NOT NULL,
-          WeeklyEnabled bit NOT NULL, WeeklyDay int NOT NULL, WeeklyMinute int NOT NULL, TimeZone nvarchar(100) NOT NULL,
+          WeeklyEnabled bit NOT NULL, WeeklyDay int NOT NULL, WeeklyMinute int NOT NULL,
+          InactivityReminderEnabled bit NOT NULL DEFAULT 1,
+          TimeZone nvarchar(100) NOT NULL,
           Revision bigint NOT NULL, UpdatedAt datetime2 NOT NULL, LastProcessedUtc datetime2 NOT NULL);
+        ELSE IF COL_LENGTH(N'dbo.ReminderSettings', N'InactivityReminderEnabled') IS NULL
+        BEGIN
+          ALTER TABLE dbo.ReminderSettings ADD InactivityReminderEnabled bit NOT NULL CONSTRAINT DF_ReminderSettings_Inactivity DEFAULT 1;
+        END
         IF OBJECT_ID(N'dbo.UserNotifications', N'U') IS NULL
         BEGIN
           CREATE TABLE dbo.UserNotifications (

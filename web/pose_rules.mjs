@@ -18,7 +18,7 @@ function angle(a,b,c) {
 
 // Image-space heuristics, not a clinical assessment: side-on squat/pushup,
 // frontal jack. Squat/pushup use one visible side; jack requires both sides.
-// 0.6 visibility, 200 ms classification / 150 ms phase dwell,
+// 0.6 visibility, 200 ms classification / 70 ms phase dwell,
 // >=700 ms full cycles. Missing joints or >1 s frame gaps discard partial reps.
 // update returns SESSION totals; summary returns per-exercise totals.
 export class PoseWorkout {
@@ -82,7 +82,7 @@ export class PoseWorkout {
           this.cycleStart = timestampMs;
         }
       }
-      if (zone && timestampMs - this.zoneSince >= 100) {
+      if (zone && timestampMs - this.zoneSince >= 70) {
         if (zone === 'baseline') {
           if (this.phase === 'active' && this.cycleStart !== null &&
               timestampMs - this.cycleStart >= 100) {
@@ -192,7 +192,7 @@ export class PoseWorkout {
       this.zone=zone; this.zoneSince=timestampMs;
       if(this.phase==='ready' && zone!=='baseline' && this.cycleStart===null) this.cycleStart=timestampMs;
     }
-    if(zone && timestampMs-this.zoneSince>=150) {
+    if(zone && timestampMs-this.zoneSince>=70) {
       if(zone==='baseline') {
         if(this.phase==='active' && timestampMs-this.cycleStart>=300) {
           const row=this.counts[this.exercise]??={reps:0,correctReps:0,incorrectReps:0};
